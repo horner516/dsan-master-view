@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.5 — 2026-09-03
+
+- Confirmed automatic startup port selection for both Windows and Mac, with explicit handling of Windows socket error 10048 (port already in use).
+- Both desktop apps try port 53971 first, then use an available port if it is occupied. The Network access strip and copied links show the selected port.
+- Includes the compact full-width Network access strip and Mac launch fix.
+
 ## 0.2.4 — 2026-09-03
 
 - Made Network access a compact, full-width strip above the clock and cue panels, with links that wrap on smaller screens.

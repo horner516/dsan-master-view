@@ -538,7 +538,7 @@ def create_server(port: int = LOCAL_PORT) -> ThreadingHTTPServer:
     try:
         server = ThreadingHTTPServer((SERVER_BIND_HOST, port), Handler)
     except OSError as error:
-        if error.errno != errno.EADDRINUSE:
+        if error.errno not in (errno.EADDRINUSE, 10048) and getattr(error, "winerror", None) != 10048:
             raise
         server = ThreadingHTTPServer((SERVER_BIND_HOST, 0), Handler)
     with SHARED.lock:

@@ -45,6 +45,19 @@ class ProtocolTests(unittest.TestCase):
             timer.assert_not_called()
             cue.assert_not_called()
 
+    def test_windows_busy_port_falls_back(self):
+        error = OSError(10048, 'Only one usage of each socket address is normally permitted')
+        error.winerror = 10048
+        server = Mock(server_port=55002)
+        with patch('app.ThreadingHTTPServer', side_effect=[error, server]) as factory, patch('app.LimitimerWorker'), patch('app.PerfectCueWorker'):
+            try:
+                self.assertIs(create_server(), server)
+                self.assertEqual(factory.call_args_list[1].args[0], (SERVER_BIND_HOST, 0))
+                self.assertEqual(SHARED.network_status()['server']['port'], 55002)
+            finally:
+                SHARED.server_port = LOCAL_PORT
+                SHARED.network_cache_at = 0.0
+
     def test_local_application_port(self):
         self.assertEqual(LOCAL_PORT, 53971)
         self.assertEqual(SERVER_BIND_HOST, "0.0.0.0")
