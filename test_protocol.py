@@ -1,6 +1,6 @@
 import unittest
 
-from app import SharedState, base128_time, crc16_modbus, parse_limitimer_frame, validate_config
+from app import LOCAL_PORT, SharedState, base128_time, crc16_modbus, parse_limitimer_frame, validate_config
 
 
 CAPTURED_FRAME = bytes.fromhex(
@@ -9,6 +9,9 @@ CAPTURED_FRAME = bytes.fromhex(
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_local_application_port(self):
+        self.assertEqual(LOCAL_PORT, 53971)
+
     def test_base128_time(self):
         self.assertEqual(base128_time(bytes.fromhex("000458"), 0), 600)
         self.assertEqual(base128_time(bytes.fromhex("000078"), 0), 120)
