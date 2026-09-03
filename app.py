@@ -20,6 +20,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parent
 INDEX_PATH = ROOT / "index.html"
+LOCAL_PORT = 53971
 if getattr(sys, "frozen", False):
     DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / "DSan Master View"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -383,7 +384,7 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
-def create_server(port: int = 8765) -> ThreadingHTTPServer:
+def create_server(port: int = LOCAL_PORT) -> ThreadingHTTPServer:
     LimitimerWorker(SHARED).start()
     PerfectCueWorker(SHARED).start()
     return ThreadingHTTPServer(("127.0.0.1", port), Handler)
@@ -391,9 +392,9 @@ def create_server(port: int = 8765) -> ThreadingHTTPServer:
 
 def main() -> None:
     server = create_server()
-    print("D’San Master View is available at http://127.0.0.1:8765", flush=True)
+    print(f"D’San Master View is available at http://127.0.0.1:{LOCAL_PORT}", flush=True)
     if "--open" in sys.argv:
-        threading.Timer(0.6, lambda: webbrowser.open("http://127.0.0.1:8765")).start()
+        threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{LOCAL_PORT}")).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
