@@ -6,3 +6,5 @@ build/
 dist/
 *.pyc
 .DS_Store
+assets/dsan-master-view.iconset/
+assets/dsan-master-view.icns

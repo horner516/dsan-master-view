@@ -1,5 +1,5 @@
 #define MyAppName "D'San Master View"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "D'San"
 #define MyAppExeName "DSanMasterView.exe"
 
@@ -12,7 +12,7 @@ DefaultDirName={autopf}\D'San Master View
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 OutputDir=dist\installer
-OutputBaseFilename=DSanMasterView-{#MyAppVersion}-Setup
+OutputBaseFilename=DSanMasterView-Windows-Setup
 SetupIconFile=assets\dsan-master-view.ico
 Compression=lzma2
 SolidCompression=yes

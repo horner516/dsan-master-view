@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""Windows widget shell for D’San Master View."""
+"""Desktop shells and update support for D’San Master View."""
 
 from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 import tempfile
 import threading
 import urllib.error
@@ -13,10 +15,10 @@ from pathlib import Path
 
 import webview
 
-from app import create_server
+from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 
@@ -29,10 +31,14 @@ def version_tuple(value: str) -> tuple[int, ...]:
 
 
 class DesktopApi:
-    def __init__(self) -> None:
+    def __init__(self, is_widget: bool) -> None:
         self.window: webview.Window | None = None
-        self.on_top = True
+        self.is_widget = is_widget
+        self.on_top = is_widget
         self.pending_asset: str | None = None
+
+    def app_state(self) -> dict[str, bool]:
+        return {"is_widget": self.is_widget, "on_top": self.on_top}
 
     def check_for_updates(self) -> dict[str, object]:
         request = urllib.request.Request(
@@ -47,10 +53,8 @@ class DesktopApi:
 
         version = str(release.get("tag_name", "")).lstrip("v")
         assets = release.get("assets", [])
-        installer = next(
-            (asset for asset in assets if str(asset.get("name", "")).lower().endswith("-setup.exe")),
-            None,
-        )
+        suffix = "-setup.exe" if sys.platform == "win32" else "-macos.dmg"
+        installer = next((asset for asset in assets if str(asset.get("name", "")).lower().endswith(suffix)), None)
         if not version or version_tuple(version) <= version_tuple(APP_VERSION):
             return {"update_available": False, "message": f"D’San Master View {APP_VERSION} is up to date."}
         if not installer:
@@ -65,12 +69,16 @@ class DesktopApi:
     def install_update(self) -> dict[str, str]:
         if not self.pending_asset or not self.pending_asset.startswith("https://github.com/"):
             return {"message": "No verified update is ready to install."}
-        destination = Path(tempfile.gettempdir()) / "DSanMasterView-Update.exe"
+        extension = ".exe" if sys.platform == "win32" else ".dmg"
+        destination = Path(tempfile.gettempdir()) / f"DSanMasterView-Update{extension}"
         try:
             request = urllib.request.Request(self.pending_asset, headers={"User-Agent": "DSan-Master-View"})
             with urllib.request.urlopen(request, timeout=60) as response, destination.open("wb") as output:
                 output.write(response.read())
-            os.startfile(destination)  # type: ignore[attr-defined]
+            if sys.platform == "win32":
+                os.startfile(destination)  # type: ignore[attr-defined]
+            else:
+                subprocess.Popen(["open", str(destination)])
             return {"message": "The update installer is starting."}
         except (OSError, urllib.error.URLError, TimeoutError):
             return {"message": "The update could not be downloaded."}
@@ -86,20 +94,20 @@ class DesktopApi:
             self.window.destroy()
 
 
-def main() -> None:
+def run_desktop(*, widget: bool) -> None:
     server = create_server()
     threading.Thread(target=server.serve_forever, name="local-web-server", daemon=True).start()
-    api = DesktopApi()
+    api = DesktopApi(is_widget=widget)
     api.window = webview.create_window(
         "D’San Master View",
-        "http://127.0.0.1:8765",
+        f"http://127.0.0.1:{LOCAL_PORT}",
         js_api=api,
         width=1280,
         height=720,
         min_size=(900, 540),
-        frameless=True,
-        easy_drag=False,
-        on_top=True,
+        frameless=widget,
+        easy_drag=not widget,
+        on_top=widget,
         shadow=True,
     )
     try:
@@ -107,6 +115,10 @@ def main() -> None:
     finally:
         server.shutdown()
         server.server_close()
+
+
+def main() -> None:
+    run_desktop(widget=True)
 
 
 if __name__ == "__main__":
