@@ -31,7 +31,7 @@ The browser-only viewer and both installed desktop applications use the uncommon
 
 While D’San Master View is running, another computer on the same network can open `http://HOST-COMPUTER-IP:53971` to view the dashboard and change Settings. Replace `HOST-COMPUTER-IP` with the LAN address of the Mac or Windows computer running the app.
 
-Remote access intentionally has no PIN or password and should be used only on a trusted network. The operating system may ask whether to allow incoming network connections on first launch.
+Authentication is off by default for trusted networks. To protect remote access, open **Settings**, enable **Require authentication for remote access**, and set a username and password of at least eight characters. Remote browsers will then prompt for those credentials; the host computer can still open the app directly without a prompt. The operating system may ask whether to allow incoming network connections on first launch.
 
 The first unsigned build may require Control-clicking the app and choosing **Open**. A future Apple Developer ID signature can remove this Gatekeeper warning.
 

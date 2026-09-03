@@ -32,7 +32,7 @@
       font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       font-size: 16px;
     }
-    button, input { font: inherit; }
+    button, input, select { font: inherit; }
     button { cursor: pointer; }
     .shell { width: min(1460px, 100%); margin: 0 auto; padding: 24px; }
     header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 22px; }
@@ -109,11 +109,15 @@
     .enable { float: right; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .86rem; }
     .fields { display: grid; grid-template-columns: 1fr 130px; gap: 12px; clear: both; }
     label > span { display: block; color: var(--muted); font-size: .78rem; margin-bottom: 6px; }
-    input[type="text"], input[type="number"], select { width: 100%; color: var(--text); background: #0c1118; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; }
+    input[type="text"], input[type="password"], input[type="number"], select { width: 100%; color: var(--text); background: #0c1118; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; }
     input:focus, select:focus { outline: 2px solid rgba(77,214,232,.35); border-color: var(--cyan); }
     .display-setting { margin-top: 3px; }
     .display-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .toggle-row { display: flex; align-items: center; gap: 9px; color: var(--text); min-height: 42px; padding-top: 18px; }
+    .access-toggle { display: flex; align-items: center; gap: 9px; margin-bottom: 13px; }
+    .access-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .access-note { margin: 12px 0 0; color: var(--muted); font-size: .78rem; line-height: 1.45; }
+    .access-fields.disabled { opacity: .45; }
     .form-error { min-height: 22px; color: var(--red); font-size: .84rem; }
     .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
     .empty { color: var(--muted); }
@@ -140,6 +144,7 @@
       .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
       .fields { grid-template-columns: 1fr; }
       .display-fields { grid-template-columns: 1fr; }
+      .access-fields { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -246,6 +251,15 @@
           </label>
           <label class="toggle-row"><input type="checkbox" id="show-lights"> Show Limitimer indicator lights</label>
         </div>
+      </fieldset>
+      <fieldset>
+        <legend>Network access</legend>
+        <label class="access-toggle"><input type="checkbox" id="require-auth"> Require authentication for remote access</label>
+        <div class="access-fields" id="access-fields">
+          <label><span>Username</span><input id="auth-username" type="text" autocomplete="username" value="admin"></label>
+          <label><span>Password</span><input id="auth-password" type="password" autocomplete="new-password" minlength="8"></label>
+        </div>
+        <p class="access-note">Remote browsers will be prompted to sign in. Access from this host computer remains available without a prompt.</p>
       </fieldset>
       <div class="form-error" id="form-error" role="alert"></div>
       <div class="dialog-actions"><button class="secondary" id="cancel-settings" type="button">Cancel</button><button class="primary" type="submit">Save and connect</button></div>
@@ -374,6 +388,20 @@
       $('overtime-mode').value = config.display?.overtime || 'continue';
       $('clock-font').value = config.display?.font || 'mono';
       $('show-lights').checked = config.display?.show_lights !== false;
+      const access = config.access || {};
+      $('require-auth').checked = access.require_auth === true;
+      $('auth-username').value = access.username || 'admin';
+      $('auth-password').value = '';
+      $('auth-password').placeholder = access.password_set ? 'Leave blank to keep current password' : 'At least 8 characters';
+      toggleAuthFields();
+    }
+
+    function toggleAuthFields() {
+      const enabled = $('require-auth').checked;
+      $('access-fields').classList.toggle('disabled', !enabled);
+      $('auth-username').disabled = !enabled;
+      $('auth-password').disabled = !enabled;
+      $('auth-username').required = enabled;
     }
 
     async function poll() {
@@ -394,11 +422,13 @@
       try { await $('fullscreen-view').requestFullscreen(); } catch (_) {}
     });
     ['close-settings', 'cancel-settings'].forEach(id => $(id).addEventListener('click', () => $('settings-dialog').close()));
+    $('require-auth').addEventListener('change', toggleAuthFields);
     $('settings-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = {};
       for (const name of ['limitimer', 'perfectcue']) payload[name] = {host: $(`${name}-host`).value.trim(), port: Number($(`${name}-port`).value), enabled: $(`${name}-enabled`).checked};
       payload.display = {overtime: $('overtime-mode').value, font: $('clock-font').value, show_lights: $('show-lights').checked};
+      payload.access = {require_auth: $('require-auth').checked, username: $('auth-username').value.trim(), password: $('auth-password').value};
       try {
         const response = await fetch('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
         const result = await response.json();

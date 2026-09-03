@@ -3,8 +3,12 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import os
+import secrets
 import socket
 import sys
 import threading
@@ -32,6 +36,12 @@ DEFAULT_CONFIG = {
     "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
     "perfectcue": {"host": "", "port": 6120, "enabled": False},
     "display": {"overtime": "continue", "font": "mono", "show_lights": True},
+    "access": {
+        "require_auth": False,
+        "username": "admin",
+        "password_salt": "",
+        "password_hash": "",
+    },
 }
 
 
@@ -155,17 +165,19 @@ class SharedState:
                     merged[name].update(saved[name])
             if isinstance(saved.get("display"), dict):
                 merged["display"].update(saved["display"])
+            if isinstance(saved.get("access"), dict):
+                merged["access"].update(saved["access"])
             return validate_config(merged)
         except (OSError, ValueError, TypeError, json.JSONDecodeError):
             return deepcopy(DEFAULT_CONFIG)
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
-            return {"config": deepcopy(self.config), **deepcopy(self.data)}
+            return {"config": public_config(self.config), **deepcopy(self.data)}
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
-        config = validate_config(config)
         with self.lock:
+            config = validate_config(config, existing=self.config)
             self.config = config
             self.config_version += 1
             for name in ("limitimer", "perfectcue"):
@@ -174,7 +186,7 @@ class SharedState:
             temp_path = CONFIG_PATH.with_suffix(".json.tmp")
             temp_path.write_text(json.dumps(config, indent=2) + "\n")
             os.replace(temp_path, CONFIG_PATH)
-            return deepcopy(config)
+            return public_config(config)
 
     def connection(self, name: str, status: str, error: str | None = None) -> None:
         with self.lock:
@@ -215,7 +227,35 @@ class SharedState:
             target["history"] = [event, *target["history"]][:20]
 
 
-def validate_config(config: dict[str, Any]) -> dict[str, Any]:
+def password_digest(password: str, salt_hex: str) -> str:
+    return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt_hex), 200_000).hex()
+
+
+def verify_password(config: dict[str, Any], username: str, password: str) -> bool:
+    access = config.get("access", {})
+    salt = str(access.get("password_salt", ""))
+    expected = str(access.get("password_hash", ""))
+    if not salt or not expected or not hmac.compare_digest(str(access.get("username", "")), username):
+        return False
+    try:
+        actual = password_digest(password, salt)
+    except (TypeError, ValueError):
+        return False
+    return hmac.compare_digest(expected, actual)
+
+
+def public_config(config: dict[str, Any]) -> dict[str, Any]:
+    clean = deepcopy(config)
+    access = clean.get("access", {})
+    clean["access"] = {
+        "require_auth": bool(access.get("require_auth", False)),
+        "username": str(access.get("username", "admin")),
+        "password_set": bool(access.get("password_hash")),
+    }
+    return clean
+
+
+def validate_config(config: dict[str, Any], existing: dict[str, Any] | None = None) -> dict[str, Any]:
     clean = {}
     for name in ("limitimer", "perfectcue"):
         value = config.get(name)
@@ -241,6 +281,34 @@ def validate_config(config: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("clock font is not supported")
     show_lights = bool(display.get("show_lights", True)) if isinstance(display, dict) else True
     clean["display"] = {"overtime": overtime, "font": font, "show_lights": show_lights}
+
+    access = config.get("access", {})
+    if not isinstance(access, dict):
+        raise ValueError("network access settings are invalid")
+    require_auth = bool(access.get("require_auth", False))
+    username = str(access.get("username", "admin")).strip()
+    if require_auth and not username:
+        raise ValueError("an authentication username is required")
+    password = str(access.get("password", ""))
+    salt = str(access.get("password_salt", ""))
+    digest = str(access.get("password_hash", ""))
+    if not password and existing:
+        old_access = existing.get("access", {})
+        salt = str(old_access.get("password_salt", salt))
+        digest = str(old_access.get("password_hash", digest))
+    if password:
+        if len(password) < 8:
+            raise ValueError("authentication password must be at least 8 characters")
+        salt = secrets.token_hex(16)
+        digest = password_digest(password, salt)
+    if require_auth and (not salt or not digest):
+        raise ValueError("set a password before requiring authentication")
+    clean["access"] = {
+        "require_auth": require_auth,
+        "username": username or "admin",
+        "password_salt": salt,
+        "password_hash": digest,
+    }
     return clean
 
 
@@ -342,6 +410,9 @@ class Handler(BaseHTTPRequestHandler):
     server_version = "DSanMonitor/1.0"
 
     def do_GET(self) -> None:
+        if not self.authorized():
+            self.request_authentication()
+            return
         if self.path in ("/", "/index.html"):
             self.send_bytes(INDEX_PATH.read_bytes(), "text/html; charset=utf-8")
         elif self.path == "/api/state":
@@ -350,6 +421,9 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(HTTPStatus.NOT_FOUND)
 
     def do_POST(self) -> None:
+        if not self.authorized():
+            self.request_authentication()
+            return
         if self.path != "/api/config":
             self.send_error(HTTPStatus.NOT_FOUND)
             return
@@ -362,6 +436,32 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"ok": True, "config": config})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             self.send_json({"ok": False, "error": str(exc)}, HTTPStatus.BAD_REQUEST)
+
+    def authorized(self) -> bool:
+        if self.client_address[0] == "127.0.0.1":
+            return True
+        with SHARED.lock:
+            config = deepcopy(SHARED.config)
+        if not config.get("access", {}).get("require_auth", False):
+            return True
+        header = self.headers.get("Authorization", "")
+        if not header.startswith("Basic "):
+            return False
+        try:
+            username, password = base64.b64decode(header[6:], validate=True).decode("utf-8").split(":", 1)
+        except (ValueError, UnicodeDecodeError):
+            return False
+        return verify_password(config, username, password)
+
+    def request_authentication(self) -> None:
+        body = b"Authentication required"
+        self.send_response(HTTPStatus.UNAUTHORIZED)
+        self.send_header("WWW-Authenticate", 'Basic realm="D\'San Master View", charset="UTF-8"')
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(body)
 
     def send_json(self, value: Any, status: HTTPStatus = HTTPStatus.OK) -> None:
         self.send_bytes(json.dumps(value).encode(), "application/json", status)

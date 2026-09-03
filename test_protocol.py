@@ -1,6 +1,19 @@
+import base64
 import unittest
 
-from app import LOCAL_PORT, SERVER_BIND_HOST, SharedState, base128_time, crc16_modbus, parse_limitimer_frame, validate_config
+from app import (
+    LOCAL_PORT,
+    SERVER_BIND_HOST,
+    SHARED,
+    Handler,
+    SharedState,
+    base128_time,
+    crc16_modbus,
+    parse_limitimer_frame,
+    public_config,
+    validate_config,
+    verify_password,
+)
 
 
 CAPTURED_FRAME = bytes.fromhex(
@@ -64,6 +77,79 @@ class ProtocolTests(unittest.TestCase):
         )
         self.assertEqual(config["display"]["font"], "condensed")
         self.assertFalse(config["display"]["show_lights"])
+
+    def test_remote_authentication_password_is_hashed(self):
+        config = validate_config(
+            {
+                "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
+                "perfectcue": {"host": "", "port": 6120, "enabled": False},
+                "access": {"require_auth": True, "username": "operator", "password": "correct-horse"},
+            }
+        )
+        self.assertNotIn("password", config["access"])
+        self.assertTrue(config["access"]["password_salt"])
+        self.assertTrue(config["access"]["password_hash"])
+        self.assertTrue(verify_password(config, "operator", "correct-horse"))
+        self.assertFalse(verify_password(config, "operator", "wrong-password"))
+
+    def test_public_config_hides_authentication_secrets(self):
+        config = validate_config(
+            {
+                "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
+                "perfectcue": {"host": "", "port": 6120, "enabled": False},
+                "access": {"require_auth": True, "username": "operator", "password": "correct-horse"},
+            }
+        )
+        public = public_config(config)
+        self.assertEqual(public["access"], {"require_auth": True, "username": "operator", "password_set": True})
+
+    def test_blank_password_keeps_existing_password(self):
+        original = validate_config(
+            {
+                "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
+                "perfectcue": {"host": "", "port": 6120, "enabled": False},
+                "access": {"require_auth": True, "username": "operator", "password": "correct-horse"},
+            }
+        )
+        updated = validate_config(
+            {
+                "limitimer": original["limitimer"],
+                "perfectcue": original["perfectcue"],
+                "display": original["display"],
+                "access": {"require_auth": True, "username": "operator", "password": ""},
+            },
+            existing=original,
+        )
+        self.assertEqual(updated["access"]["password_hash"], original["access"]["password_hash"])
+        self.assertTrue(verify_password(updated, "operator", "correct-horse"))
+
+    def test_remote_requests_require_valid_basic_authentication(self):
+        config = validate_config(
+            {
+                "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
+                "perfectcue": {"host": "", "port": 6120, "enabled": False},
+                "access": {"require_auth": True, "username": "operator", "password": "correct-horse"},
+            }
+        )
+        handler = object.__new__(Handler)
+        handler.client_address = ("10.21.0.50", 50000)
+        valid = base64.b64encode(b"operator:correct-horse").decode("ascii")
+        with SHARED.lock:
+            original = SHARED.config
+            SHARED.config = config
+        try:
+            handler.headers = {}
+            self.assertFalse(handler.authorized())
+            handler.headers = {"Authorization": "Basic " + valid}
+            self.assertTrue(handler.authorized())
+            handler.headers = {"Authorization": "Basic not-valid-base64"}
+            self.assertFalse(handler.authorized())
+            handler.client_address = ("127.0.0.1", 50000)
+            handler.headers = {}
+            self.assertTrue(handler.authorized())
+        finally:
+            with SHARED.lock:
+                SHARED.config = original
 
 
 if __name__ == "__main__":
