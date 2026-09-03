@@ -113,6 +113,10 @@
     #message-dialog form { display: grid; gap: 14px; }
     #message-text { width: 100%; background: #0c1118; color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 12px; font: inherit; }
     input[type="color"] { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: transparent; }
+    .scan-result { padding: 12px 0; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+    .scan-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    #scan-results { max-height: 250px; overflow-y: auto; }
+    #scan-status { margin: 12px 0; color: var(--muted); font-size: .85rem; }
     body.browser-display .fullscreen-view { visibility: visible; pointer-events: auto; }
     body.browser-display .shell { display: none; }
     body.browser-display { overflow: hidden; background: #000; }
@@ -366,6 +370,18 @@
   <dialog id="settings-dialog">
     <div class="dialog-head"><h2>Settings</h2><button class="close" id="close-settings" type="button" aria-label="Close">×</button></div>
     <form id="settings-form">
+      <fieldset>
+        <legend>Find devices on the network</legend>
+        <div class="display-fields">
+          <label><span>Subnet to scan</span><input id="scan-subnet" type="text" placeholder="10.21.0.0/24"></label>
+          <label><span>TCP ports (comma-separated)</span><input id="scan-ports" type="text" value="6120" placeholder="6120, 4001"></label>
+        </div>
+        <p class="access-note">Scan up to 256 addresses and four ports. Results are reachable ports, not confirmed device types. Choose which device to use below, then Save and connect. Manual IP entry remains available.</p>
+        <p class="access-note">Some serial adapters allow only one connection; scanning may briefly occupy a connection. Already-connected devices in this app are listed without probing them.</p>
+        <button class="secondary" id="scan-devices" type="button">Scan for devices</button>
+        <div id="scan-status" role="status" aria-live="polite"></div>
+        <div id="scan-results"></div>
+      </fieldset>
       <fieldset>
         <legend>Limitimer</legend>
         <label class="enable"><input type="checkbox" id="limitimer-enabled"> Enabled</label>
@@ -631,6 +647,11 @@
     }
 
     function fillSettings(config) {
+      if (!$('scan-subnet').value) {
+        const host = latestState?.network?.server?.ip_addresses?.find(ip => ip !== '127.0.0.1');
+        if (host) $('scan-subnet').value = host.split('.').slice(0, 3).join('.') + '.0/24';
+      }
+      if (!$('scan-ports').dataset.edited) $('scan-ports').value = [...new Set([config.limitimer.port, config.perfectcue.port])].join(', ');
       ['limitimer', 'perfectcue'].forEach(name => {
         $(`${name}-host`).value = config[name].host;
         $(`${name}-port`).value = config[name].port;
@@ -742,6 +763,37 @@
     });
     ['close-settings', 'cancel-settings'].forEach(id => $(id).addEventListener('click', () => $('settings-dialog').close()));
     $('require-auth').addEventListener('change', toggleAuthFields);
+    $('scan-ports').addEventListener('input', () => $('scan-ports').dataset.edited = 'true');
+    $('scan-devices').addEventListener('click', async () => {
+      const button = $('scan-devices');
+      button.disabled = true;
+      $('scan-status').textContent = 'Scanning… This may take about 20 seconds. You can keep using the display.';
+      $('scan-results').replaceChildren();
+      try {
+        const ports = $('scan-ports').value.split(',').map(value => Number(value.trim()));
+        const response = await fetch('/api/discover', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({subnet:$('scan-subnet').value.trim(), ports})});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Scan failed.');
+        $('scan-status').textContent = result.devices.length ? `${result.devices.length} reachable endpoint(s). Select the device for each role; nothing connects until you save.` : 'No devices found on these ports. Check the subnet and adapter ports. Busy adapters may not respond; you can still enter their IP manually.';
+        for (const device of result.devices) {
+          const row = document.createElement('div'); row.className = 'scan-result';
+          const label = document.createElement('div'); label.textContent = `${device.host}:${device.port}${device.connected ? ' — already connected' : ' — type unverified'}`;
+          const actions = document.createElement('div'); actions.className = 'scan-actions';
+          for (const [role, title] of [['limitimer','Limitimer'], ['perfectcue','PerfectCue']]) {
+            const select = document.createElement('button'); select.type = 'button'; select.className = 'secondary'; select.textContent = `Use for ${title}`;
+            select.addEventListener('click', () => {
+              $(`${role}-host`).value = device.host;
+              $(`${role}-port`).value = device.port;
+              $(`${role}-enabled`).checked = true;
+              $('scan-status').textContent = `${title} selected: ${device.host}:${device.port}. Review both device fields, then Save and connect.`;
+            });
+            actions.appendChild(select);
+          }
+          row.append(label, actions); $('scan-results').appendChild(row);
+        }
+      } catch (error) { $('scan-status').textContent = error.message; }
+      finally { button.disabled = false; }
+    });
     $('settings-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const payload = {};

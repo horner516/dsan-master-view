@@ -1,5 +1,5 @@
 #define MyAppName "D'San Master View"
-#define MyAppVersion "0.3.0"
+#define MyAppVersion "0.3.1"
 #define MyAppPublisher "D'San"
 #define MyAppExeName "DSanMasterView.exe"
 

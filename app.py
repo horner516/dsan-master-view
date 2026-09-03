@@ -23,6 +23,7 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any
+from discovery import scan_network
 
 
 ROOT = Path(__file__).resolve().parent
@@ -483,7 +484,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             self.request_authentication()
             return
-        if self.path not in ("/api/config", "/api/message"):
+        if self.path not in ("/api/config", "/api/message", "/api/discover"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         try:
@@ -491,6 +492,11 @@ class Handler(BaseHTTPRequestHandler):
             if size > 16_384:
                 raise ValueError("settings payload is too large")
             payload = json.loads(self.rfile.read(size))
+            if self.path == "/api/discover":
+                with SHARED.lock:
+                    connected = [(SHARED.config[name]['host'], SHARED.config[name]['port']) for name in ('limitimer', 'perfectcue') if SHARED.data[name]['status'] == 'connected']
+                self.send_json({"ok": True, "devices": scan_network(payload, connected)})
+                return
             if self.path == "/api/message":
                 message = validate_message(payload)
                 with SHARED.lock:

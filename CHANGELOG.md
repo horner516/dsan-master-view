@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — 2026-09-03
+
+- Added Settings network discovery with a user-selected local subnet and up to four configurable TCP ports.
+- Lists all reachable endpoints with separate Use for Limitimer and Use for PerfectCue buttons; selecting a result fills the fields without connecting until Save and connect.
+- Preserved manual entry and skips probing devices already connected by this app. Reachable ports are labeled as unverified rather than guessing device types.
+
 ## 0.3.0 — 2026-09-03
 
 - Added presenter messages for all full-screen and `/full` displays, with text color, gentle flashing, and Show/Clear controls.
