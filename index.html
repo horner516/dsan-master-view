@@ -415,7 +415,14 @@
       toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3500);
     }
 
-    window.addEventListener('pywebviewready', () => { desktopMode = true; });
+    window.addEventListener('pywebviewready', async () => {
+      desktopMode = true;
+      try {
+        const state = await window.pywebview.api.app_state();
+        $('toggle-on-top').textContent = `Keep on top: ${state.on_top ? 'On' : 'Off'}`;
+        $('close-widget').textContent = state.is_widget ? 'Close widget' : 'Quit app';
+      } catch (_) {}
+    });
     window.addEventListener('contextmenu', event => {
       if (!desktopMode) return;
       event.preventDefault();
