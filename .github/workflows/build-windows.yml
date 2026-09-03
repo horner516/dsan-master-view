@@ -1,3 +1,70 @@
+name: Build desktop installers
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: pip install -r requirements-desktop.txt
+      - name: Generate app icon
+        run: python tools/make_icon.py
+      - name: Build widget
+        run: pyinstaller DSanMasterView.spec
+      - name: Build installer
+        run: iscc installer.iss
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DSanMasterView-Windows
+          path: dist/installer/*-Setup.exe
+      - name: Attach installer to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/installer/*-Setup.exe
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install build tools
+        run: |
+          pip install -r requirements-desktop.txt
+          pip install 'pywebview[cocoa]==6.1'
+      - name: Generate Dock icon
+        run: python tools/make_icon.py
+      - name: Build macOS application
+        run: pyinstaller DSanMasterViewMac.spec
+      - name: Build disk image
+        run: |
+          mkdir -p dist/dmg-root
+          cp -R "dist/D'San Master View.app" dist/dmg-root/
+          ln -s /Applications dist/dmg-root/Applications
+          hdiutil create -volname "D'San Master View" -srcfolder dist/dmg-root -ov -format UDZO dist/DSanMasterView-0.2.0-macOS.dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DSanMasterView-macOS
+          path: dist/*-macOS.dmg
+      - name: Attach installer to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*-macOS.dmg
 name: Build Windows installer
 
 on:
