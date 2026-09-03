@@ -98,6 +98,39 @@
     .fullscreen-direction.next.active { filter: drop-shadow(0 0 3vw rgba(53,208,127,.58)); }
     .fullscreen-direction.previous { color: var(--red); }
     .fullscreen-direction.previous.active { filter: drop-shadow(0 0 3vw rgba(255,82,99,.58)); }
+    .mobile-view { position: fixed; inset: 0; z-index: 90; display: none; overflow-y: auto; background: #080b10; }
+    body.mobile-open { overflow: hidden; }
+    body.mobile-open .mobile-view { display: block; }
+    .mobile-shell { width: min(100%, 560px); min-height: 100%; margin: 0 auto; padding: 16px; }
+    .mobile-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .mobile-head .identity { min-width: 0; }
+    .mobile-head .mark { width: 38px; height: 38px; flex: 0 0 auto; }
+    .mobile-head h2 { margin: 0; font-size: 1rem; }
+    .mobile-actions { display: flex; gap: 7px; }
+    .mobile-actions button { padding: 9px 11px; }
+    .mobile-stack { display: grid; gap: 14px; }
+    .mobile-card { overflow: hidden; border: 1px solid var(--line); border-radius: 17px; background: var(--panel); box-shadow: var(--shadow); }
+    .mobile-card-head { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--line); font-weight: 720; }
+    .mobile-timer { display: grid; place-items: center; min-height: 270px; padding: 20px 12px 24px; text-align: center; }
+    .mobile-lights { display: flex; gap: 17px; margin-bottom: 20px; }
+    body.hide-lights .mobile-lights { display: none; }
+    .mobile-lights .lamp { width: 24px; height: 24px; }
+    .mobile-program { color: var(--cyan); font-size: .78rem; font-weight: 780; letter-spacing: .09em; text-transform: uppercase; }
+    .mobile-clock { max-width: 100%; margin: 17px 0 18px; font-family: var(--clock-font); font-size: clamp(4.8rem, 24vw, 8rem); font-weight: 760; line-height: .88; letter-spacing: -.075em; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .mobile-metrics { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--line); }
+    .mobile-metrics .metric { border-bottom: 1px solid var(--line); }
+    .mobile-metrics .metric:nth-child(2n) { border-right: 0; }
+    .mobile-metrics .metric:nth-last-child(-n+2) { border-bottom: 0; }
+    .mobile-cues { padding: 25px 18px 20px; text-align: center; }
+    .mobile-directions { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 2px auto 19px; }
+    .mobile-direction { display: grid; place-items: center; min-height: 112px; border: 1px solid #334156; border-radius: 18px; background: linear-gradient(145deg, #192230, #0c1118); color: #526175; opacity: .4; transition: opacity .12s, transform .12s, color .12s, filter .12s; }
+    .mobile-direction svg { width: 72%; height: auto; fill: currentColor; }
+    .mobile-direction.next.active { color: var(--green); filter: drop-shadow(0 0 18px rgba(53,208,127,.58)); }
+    .mobile-direction.previous.active { color: var(--red); filter: drop-shadow(0 0 18px rgba(255,82,99,.58)); }
+    .mobile-direction.active { opacity: 1; transform: scale(1.025); }
+    .mobile-direction.flash { animation: cue-flash .5s linear; }
+    .mobile-cue-label { min-height: 24px; font-weight: 700; }
+    .mobile-cue-meta { margin-top: 5px; color: var(--muted); font-size: .8rem; }
     dialog { width: min(620px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 18px; padding: 0; background: var(--panel); color: var(--text); box-shadow: 0 30px 100px #000; }
     dialog::backdrop { background: rgba(2,5,9,.78); backdrop-filter: blur(4px); }
     .dialog-head { padding: 20px 22px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
@@ -157,6 +190,7 @@
       </div>
       <div class="header-actions">
         <button class="settings-button" id="open-fullscreen" type="button">Full screen</button>
+        <button class="settings-button" id="open-mobile" type="button">Mobile view</button>
         <button class="settings-button" id="open-settings" type="button">Settings</button>
       </div>
     </header>
@@ -202,6 +236,50 @@
     </section>
 
   </main>
+
+  <section class="mobile-view" id="mobile-view" aria-label="Mobile dashboard" aria-hidden="true">
+    <div class="mobile-shell">
+      <header class="mobile-head">
+        <div class="identity"><div class="mark">D’S</div><div><h2>D’San Master View</h2><div class="subtitle">Mobile dashboard</div></div></div>
+        <div class="mobile-actions">
+          <button class="secondary" id="mobile-settings" type="button">Settings</button>
+          <button class="secondary" id="close-mobile" type="button" aria-label="Close mobile view">Done</button>
+        </div>
+      </header>
+      <div class="mobile-stack">
+        <article class="mobile-card">
+          <div class="mobile-card-head"><span>Limitimer</span><span class="status" id="mobile-limitimer-status"><span class="status-dot"></span><span>Waiting</span></span></div>
+          <div class="mobile-timer">
+            <div class="mobile-lights" aria-label="Signal light">
+              <span class="lamp green" id="mobile-lamp-green"></span>
+              <span class="lamp yellow" id="mobile-lamp-yellow"></span>
+              <span class="lamp red" id="mobile-lamp-red"></span>
+            </div>
+            <div class="mobile-program" id="mobile-program">Program —</div>
+            <div class="mobile-clock" id="mobile-clock">--:--</div>
+            <div class="timer-state" id="mobile-timer-state"><span class="run-icon"></span><span>Waiting for timer data</span></div>
+          </div>
+          <div class="mobile-metrics">
+            <div class="metric"><div class="metric-label">Total</div><div class="metric-value" id="mobile-total">—</div></div>
+            <div class="metric"><div class="metric-label">Elapsed</div><div class="metric-value" id="mobile-elapsed">—</div></div>
+            <div class="metric"><div class="metric-label">Sum-up</div><div class="metric-value" id="mobile-sumup">—</div></div>
+            <div class="metric"><div class="metric-label">Packets</div><div class="metric-value" id="mobile-packets">0</div></div>
+          </div>
+        </article>
+        <article class="mobile-card">
+          <div class="mobile-card-head"><span>PerfectCue</span><span class="status" id="mobile-perfectcue-status"><span class="status-dot"></span><span>Waiting</span></span></div>
+          <div class="mobile-cues">
+            <div class="mobile-directions" aria-live="assertive">
+              <div class="mobile-direction previous" id="mobile-previous" aria-label="Previous"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M29 8H14V2L3 12l11 10v-6h15z"/></svg></div>
+              <div class="mobile-direction next" id="mobile-next" aria-label="Next"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 8h15V2l11 10-11 10v-6H3z"/></svg></div>
+            </div>
+            <div class="mobile-cue-label" id="mobile-cue-label">Waiting for cue</div>
+            <div class="mobile-cue-meta"><span id="mobile-cue-code">No events</span> · <span id="mobile-cue-count">0 cues</span></div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
 
   <section class="fullscreen-view" id="fullscreen-view" aria-label="Full-screen timer and cue">
     <div class="fullscreen-stage">
@@ -323,25 +401,39 @@
 
     function renderLimitimer(device) {
       setStatus('limitimer-status', device.status, device.error);
+      setStatus('mobile-limitimer-status', device.status, device.error);
       $('metric-packets').textContent = device.packet_count.toLocaleString();
+      $('mobile-packets').textContent = device.packet_count.toLocaleString();
       if (!device.data) return;
       const data = device.data;
       const active = data.active;
       $('selected-program').textContent = `Program ${data.selected_program}`;
+      $('mobile-program').textContent = `Program ${data.selected_program}`;
       const displayedTime = viewerTime(active);
       $('clock').textContent = displayedTime;
       $('fullscreen-clock').textContent = displayedTime;
+      $('mobile-clock').textContent = displayedTime;
       $('metric-total').textContent = active.total;
       $('metric-elapsed').textContent = active.elapsed;
       $('metric-sumup').textContent = active.sumup;
+      $('mobile-total').textContent = active.total;
+      $('mobile-elapsed').textContent = active.elapsed;
+      $('mobile-sumup').textContent = active.sumup;
       $('timer-state').className = `timer-state ${active.running ? 'running' : ''}`;
       $('timer-state').querySelector('span:last-child').textContent = active.running ? 'Running' : 'Stopped';
-      ['green', 'yellow', 'red'].forEach(color => $('lamp-' + color).classList.toggle('on', active.signal === color));
+      $('mobile-timer-state').className = `timer-state ${active.running ? 'running' : ''}`;
+      $('mobile-timer-state').querySelector('span:last-child').textContent = active.running ? 'Running' : 'Stopped';
+      ['green', 'yellow', 'red'].forEach(color => {
+        $('lamp-' + color).classList.toggle('on', active.signal === color);
+        $('mobile-lamp-' + color).classList.toggle('on', active.signal === color);
+      });
     }
 
     function renderCue(device) {
       setStatus('perfectcue-status', device.status, device.error);
+      setStatus('mobile-perfectcue-status', device.status, device.error);
       $('cue-count').textContent = `${device.event_count} cue${device.event_count === 1 ? '' : 's'}`;
+      $('mobile-cue-count').textContent = `${device.event_count} cue${device.event_count === 1 ? '' : 's'}`;
       const event = device.last_event;
       if (!event) return;
       const signature = `${event.at}-${event.code}`;
@@ -357,25 +449,29 @@
       else $('cue-symbol').textContent = symbols[event.kind] || '·';
       $('cue-label').textContent = `${event.label} · ${event.detail}`;
       $('cue-code').textContent = event.code;
+      $('mobile-cue-label').textContent = `${event.label} · ${event.detail}`;
+      $('mobile-cue-code').textContent = event.code;
       const flashClass = repeatedDirection ? ' flash' : '';
       $('cue-display').className = `cue-display active ${event.kind}${flashClass}`;
-      const fullscreenArrows = [$('fullscreen-previous'), $('fullscreen-next')];
-      fullscreenArrows.forEach(arrow => arrow.classList.remove('active', 'flash'));
+      const directionArrows = [$('fullscreen-previous'), $('fullscreen-next'), $('mobile-previous'), $('mobile-next')];
+      directionArrows.forEach(arrow => arrow.classList.remove('active', 'flash'));
       if (directional) {
-        const activeArrow = event.kind === 'next' ? $('fullscreen-next') : $('fullscreen-previous');
-        activeArrow.classList.add('active');
-        if (repeatedDirection) activeArrow.classList.add('flash');
+        const activeArrows = event.kind === 'next'
+          ? [$('fullscreen-next'), $('mobile-next')]
+          : [$('fullscreen-previous'), $('mobile-previous')];
+        activeArrows.forEach(arrow => arrow.classList.add('active'));
+        if (repeatedDirection) activeArrows.forEach(arrow => arrow.classList.add('flash'));
       }
       cueVisibleUntil = now + 2000;
       clearTimeout(cueFlashTimer);
       if (repeatedDirection) cueFlashTimer = setTimeout(() => {
         $('cue-display').classList.remove('flash');
-        fullscreenArrows.forEach(arrow => arrow.classList.remove('flash'));
+        directionArrows.forEach(arrow => arrow.classList.remove('flash'));
       }, 500);
       clearTimeout(cueTimer);
       cueTimer = setTimeout(() => {
         $('cue-display').classList.remove('active');
-        fullscreenArrows.forEach(arrow => arrow.classList.remove('active'));
+        directionArrows.forEach(arrow => arrow.classList.remove('active'));
       }, 2000);
     }
 
@@ -421,6 +517,17 @@
     $('open-fullscreen').addEventListener('click', async () => {
       try { await $('fullscreen-view').requestFullscreen(); } catch (_) {}
     });
+    $('open-mobile').addEventListener('click', () => {
+      document.body.classList.add('mobile-open');
+      $('mobile-view').setAttribute('aria-hidden', 'false');
+      $('close-mobile').focus();
+    });
+    $('close-mobile').addEventListener('click', () => {
+      document.body.classList.remove('mobile-open');
+      $('mobile-view').setAttribute('aria-hidden', 'true');
+      $('open-mobile').focus();
+    });
+    $('mobile-settings').addEventListener('click', () => $('open-settings').click());
     ['close-settings', 'cancel-settings'].forEach(id => $(id).addEventListener('click', () => $('settings-dialog').close()));
     $('require-auth').addEventListener('change', toggleAuthFields);
     $('settings-form').addEventListener('submit', async (event) => {

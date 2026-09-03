@@ -13,7 +13,7 @@ Double-click `start.command`, then open <http://127.0.0.1:53971> if the dashboar
 
 The first launch is preconfigured for the Limitimer at `10.21.0.119:6120`. Open **Settings** to change its address or add the PerfectCue adapter. Settings are saved locally in `viewer-config.json`.
 
-Use **Full screen** for a clean 16:9 output with a centered countdown and separate Previous/Next indicators beneath it. Press Escape to leave full-screen mode. Under **Settings**, choose the clock font, show or hide Limitimer lights, and set the countdown to stop visually at `00:00` or show negative overtime.
+Use **Full screen** for a clean 16:9 output with a centered countdown and separate Previous/Next indicators beneath it. Press Escape to leave full-screen mode. Choose **Mobile view** for a touch-friendly single-column dashboard with the clock, Limitimer lights, timer details, separate cue arrows, and Settings access. Under **Settings**, choose the clock font, show or hide Limitimer lights, and set the countdown to stop visually at `00:00` or show negative overtime.
 
 ## Windows widget
 
