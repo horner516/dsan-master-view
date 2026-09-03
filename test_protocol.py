@@ -1,5 +1,7 @@
 import base64
+import errno
 import unittest
+from unittest.mock import Mock, patch
 
 from app import (
     LOCAL_PORT,
@@ -13,6 +15,7 @@ from app import (
     public_config,
     validate_config,
     verify_password,
+    create_server,
 )
 
 
@@ -22,6 +25,26 @@ CAPTURED_FRAME = bytes.fromhex(
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_busy_port_falls_back_and_reports_actual_port(self):
+        server = Mock(server_port=55001)
+        with patch('app.ThreadingHTTPServer', side_effect=[OSError(errno.EADDRINUSE, 'busy'), server]) as factory, patch('app.LimitimerWorker') as timer, patch('app.PerfectCueWorker') as cue:
+            try:
+                self.assertIs(create_server(), server)
+                self.assertEqual(factory.call_args_list[1].args[0], (SERVER_BIND_HOST, 0))
+                self.assertEqual(SHARED.network_status()['server']['port'], 55001)
+                timer.return_value.start.assert_called_once()
+                cue.return_value.start.assert_called_once()
+            finally:
+                SHARED.server_port = LOCAL_PORT
+                SHARED.network_cache_at = 0.0
+
+    def test_failed_bind_does_not_start_device_workers(self):
+        with patch('app.ThreadingHTTPServer', side_effect=PermissionError(errno.EACCES, 'denied')), patch('app.LimitimerWorker') as timer, patch('app.PerfectCueWorker') as cue:
+            with self.assertRaises(PermissionError):
+                create_server()
+            timer.assert_not_called()
+            cue.assert_not_called()
+
     def test_local_application_port(self):
         self.assertEqual(LOCAL_PORT, 53971)
         self.assertEqual(SERVER_BIND_HOST, "0.0.0.0")

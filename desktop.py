@@ -18,7 +18,7 @@ import webview
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.2"
+APP_VERSION = "0.2.3"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 
@@ -101,7 +101,7 @@ def run_desktop(*, widget: bool) -> None:
     api = DesktopApi(is_widget=widget)
     api.window = webview.create_window(
         "D’San Master View",
-        f"http://127.0.0.1:{LOCAL_PORT}",
+        f"http://127.0.0.1:{server.server_port}",
         js_api=api,
         width=1280,
         height=720,

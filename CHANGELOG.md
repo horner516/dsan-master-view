@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.3 — 2026-09-03
+
+- Fixed a launch crash when another process already occupies the dashboard port.
+- Desktop and browser servers now select an available port when the preferred port is busy; the dashboard and copied links show the actual port.
+- Device connections start only after the web server successfully opens its port.
+
 ## 0.2.2 — 2026-09-03
 
 - Added a visible Check for updates button on Mac and Windows, with the latest release page available from the browser viewer.

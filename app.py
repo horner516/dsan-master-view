@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import base64
+import errno
 import hashlib
 import hmac
 import json
@@ -159,13 +160,14 @@ def parse_limitimer_frame(frame: bytes) -> dict[str, Any]:
 
 class SharedState:
     def __init__(self) -> None:
+        self.server_port = LOCAL_PORT
         self.lock = threading.RLock()
         self.config = self._load_config()
         self.config_version = 0
         self.network_cache_at = 0.0
         self.network_cache: dict[str, Any] = {
             "server": {
-                "port": LOCAL_PORT,
+                "port": self.server_port,
                 "ip_addresses": local_ipv4_addresses(),
             }
         }
@@ -215,7 +217,7 @@ class SharedState:
             if now - self.network_cache_at > NETWORK_REFRESH_SECONDS:
                 self.network_cache = {
                     "server": {
-                        "port": LOCAL_PORT,
+                        "port": self.server_port,
                         "ip_addresses": local_ipv4_addresses(),
                     }
                 }
@@ -533,16 +535,25 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def create_server(port: int = LOCAL_PORT) -> ThreadingHTTPServer:
+    try:
+        server = ThreadingHTTPServer((SERVER_BIND_HOST, port), Handler)
+    except OSError as error:
+        if error.errno != errno.EADDRINUSE:
+            raise
+        server = ThreadingHTTPServer((SERVER_BIND_HOST, 0), Handler)
+    with SHARED.lock:
+        SHARED.server_port = server.server_port
+        SHARED.network_cache_at = 0.0
     LimitimerWorker(SHARED).start()
     PerfectCueWorker(SHARED).start()
-    return ThreadingHTTPServer((SERVER_BIND_HOST, port), Handler)
+    return server
 
 
 def main() -> None:
     server = create_server()
-    print(f"D’San Master View is available locally and on the LAN at port {LOCAL_PORT}", flush=True)
+    print(f"D’San Master View is available locally and on the LAN at port {server.server_port}", flush=True)
     if "--open" in sys.argv:
-        threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{LOCAL_PORT}")).start()
+        threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{server.server_port}")).start()
     try:
         server.serve_forever()
     except KeyboardInterrupt:
