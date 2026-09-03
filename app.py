@@ -21,6 +21,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parent
 INDEX_PATH = ROOT / "index.html"
 LOCAL_PORT = 53971
+SERVER_BIND_HOST = "0.0.0.0"
 if getattr(sys, "frozen", False):
     DATA_DIR = Path(os.environ.get("APPDATA", Path.home())) / "DSan Master View"
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -387,12 +388,12 @@ class Handler(BaseHTTPRequestHandler):
 def create_server(port: int = LOCAL_PORT) -> ThreadingHTTPServer:
     LimitimerWorker(SHARED).start()
     PerfectCueWorker(SHARED).start()
-    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    return ThreadingHTTPServer((SERVER_BIND_HOST, port), Handler)
 
 
 def main() -> None:
     server = create_server()
-    print(f"D’San Master View is available at http://127.0.0.1:{LOCAL_PORT}", flush=True)
+    print(f"D’San Master View is available locally and on the LAN at port {LOCAL_PORT}", flush=True)
     if "--open" in sys.argv:
         threading.Timer(0.6, lambda: webbrowser.open(f"http://127.0.0.1:{LOCAL_PORT}")).start()
     try:

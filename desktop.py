@@ -18,7 +18,7 @@ import webview
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.0"
+APP_VERSION = "0.2.1"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 

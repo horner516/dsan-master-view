@@ -27,6 +27,12 @@ Download the macOS `.dmg`, drag **D’San Master View** into Applications, and l
 
 The browser-only viewer and both installed desktop applications use the uncommon local port `53971` to minimize conflicts. Device TCP ports remain independently configurable under **Settings**.
 
+## Configure from another computer
+
+While D’San Master View is running, another computer on the same network can open `http://HOST-COMPUTER-IP:53971` to view the dashboard and change Settings. Replace `HOST-COMPUTER-IP` with the LAN address of the Mac or Windows computer running the app.
+
+Remote access intentionally has no PIN or password and should be used only on a trusted network. The operating system may ask whether to allow incoming network connections on first launch.
+
 The first unsigned build may require Control-clicking the app and choosing **Open**. A future Apple Developer ID signature can remove this Gatekeeper warning.
 
 ## Supported data
@@ -34,4 +40,4 @@ The first unsigned build may require Control-clicking the app and choosing **Ope
 - Limitimer: selected countdown, total, elapsed, remaining, sum-up threshold, run state, signal color, timer direction, and checksum validation.
 - PerfectCue: green Next (`0x0F`), red Previous (`0x1F`), Blank/yellow-off (`0x2F`), and Blank/yellow-on (`0x3F`). Directional cues remain visible for two seconds; repeated same-direction cues flash for half a second.
 
-The web page and device connections remain local to this Mac. The dashboard binds only to `127.0.0.1` and does not send device data to an internet service.
+Device data is not sent to an internet service. The dashboard is served directly by the host computer to trusted devices on the same network.
