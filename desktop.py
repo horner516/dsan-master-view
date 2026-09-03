@@ -19,7 +19,7 @@ import webview
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.6"
+APP_VERSION = "0.2.7"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 
@@ -107,6 +107,7 @@ class DesktopApi:
 
 def run_desktop(*, widget: bool) -> None:
     server = create_server()
+    server.desktop_bridge = True
     threading.Thread(target=server.serve_forever, name="local-web-server", daemon=True).start()
     api = DesktopApi(is_widget=widget)
     api.server_port = server.server_port

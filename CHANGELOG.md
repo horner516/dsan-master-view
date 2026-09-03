@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.7 — 2026-09-03
+
+- Fixed the page security policy blocking the desktop bridge used by update checks, installation, and opening the browser display.
+- Enabled the required bridge scripting only for loopback requests to the desktop server; remote viewers and browser-only servers keep the stricter policy.
+
 ## 0.2.6 — 2026-09-03
 
 - Update checks now open a persistent pop-up with progress, results, errors, and an Install update button.

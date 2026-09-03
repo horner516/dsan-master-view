@@ -1,12 +1,28 @@
 import io
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
+
+from app import Handler
 
 from desktop import APP_VERSION, DesktopApi
 
 
 class DesktopTests(unittest.TestCase):
+    def test_bridge_policy_only_for_local_desktop_requests(self):
+        for desktop, address, allowed in [(True, '127.0.0.1', True), (True, '10.21.1.20', False), (False, '127.0.0.1', False)]:
+            with self.subTest(desktop=desktop, address=address):
+                handler = Handler.__new__(Handler)
+                handler.server = Mock(desktop_bridge=desktop)
+                handler.client_address = (address, 50000)
+                handler.send_response = Mock()
+                handler.send_header = Mock()
+                handler.end_headers = Mock()
+                handler.wfile = io.BytesIO()
+                handler.send_bytes(b'ok', 'text/html')
+                headers = dict(call.args for call in handler.send_header.call_args_list)
+                self.assertEqual("'unsafe-eval'" in headers['Content-Security-Policy'], allowed)
+
     def test_current_version_message(self):
         release = io.StringIO(json.dumps({'tag_name': f'v{APP_VERSION}', 'assets': []}))
         with patch('desktop.urllib.request.urlopen', return_value=release):
