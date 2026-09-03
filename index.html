@@ -104,7 +104,12 @@
     .cue-meta { display: flex; justify-content: space-between; padding: 15px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
     .fullscreen-view { position: fixed; inset: 0; z-index: 100; visibility: hidden; pointer-events: none; background: #000; display: grid; place-items: center; }
     .fullscreen-view:fullscreen { visibility: visible; pointer-events: auto; }
-    .clock, .fullscreen-clock, .mobile-clock { color: var(--timer-color, #f5f8fb); }
+    .clock, .fullscreen-clock, .mobile-clock { color: var(--timer-color, #f5f8fb); width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) .28em minmax(0, 1fr); align-items: center; letter-spacing: 0; }
+    .clock-left, .clock-right { display: flex; align-items: center; min-width: 0; }
+    .clock-left { justify-content: flex-end; }
+    .clock-right { justify-content: flex-start; }
+    .clock-digit { flex: 0 0 .6em; width: .6em; text-align: center; letter-spacing: 0; }
+    .clock-colon { display: block; width: .28em; text-align: center; letter-spacing: 0; }
     .presenter-message { display: none; width: 100%; text-align: center; font-weight: 750; font-size: clamp(18px, 4vw, 72px); line-height: 1.1; overflow-wrap: anywhere; white-space: pre-wrap; }
     body.has-message .presenter-message { display: block; }
     body.has-message .fullscreen-stage { grid-template-rows: minmax(0, 1fr) 22% 24%; }
@@ -126,8 +131,9 @@
     #update-dialog .dialog-actions { padding: 16px 22px; }
     .fullscreen-stage { width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9; display: grid; grid-template-rows: minmax(0, 1fr) 28%; place-items: center; padding: 3vh 3vw 4vh; background: radial-gradient(circle at 50% 44%, #111a24 0, #05080c 42%, #000 74%); overflow: hidden; }
     .fullscreen-clock { align-self: end; max-width: 100%; font-family: var(--clock-font); font-size: min(28vw, 49vh); font-weight: 760; line-height: .86; letter-spacing: -.085em; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
-    .fullscreen-directions { align-self: start; width: min(68vw, 1250px); display: grid; grid-template-columns: 1fr 1fr; gap: min(13vw, 240px); place-items: center; }
-    .fullscreen-direction { width: min(15vw, 27vh); height: min(10vw, 18vh); opacity: .13; transform: scale(.94); transition: opacity .12s, transform .12s, filter .12s; }
+    .fullscreen-directions { align-self: start; width: min(64vw, 104vh); display: grid; grid-template-columns: 1fr 1fr; gap: min(4vw, 8vh); place-items: center; }
+    .fullscreen-direction { width: min(30vw, 48vh); height: min(19vw, 29vh); max-width: 100%; opacity: .13; transform: scale(.94); transition: opacity .12s, transform .12s, filter .12s; }
+    body.has-message .fullscreen-direction { height: min(15vw, 21vh); }
     .fullscreen-direction.active { opacity: 1; transform: scale(1.04); }
     .fullscreen-direction.next { color: var(--green); }
     .fullscreen-direction.next.active { filter: drop-shadow(0 0 3vw rgba(53,208,127,.58)); }
@@ -348,8 +354,8 @@
     <div class="fullscreen-stage">
       <div class="fullscreen-clock" id="fullscreen-clock">--:--</div>
       <div class="fullscreen-directions" aria-live="assertive">
-        <div class="fullscreen-direction previous" id="fullscreen-previous" aria-label="Previous"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M29 8H14V2L3 12l11 10v-6h15z"/></svg></div>
-        <div class="fullscreen-direction next" id="fullscreen-next" aria-label="Next"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 8h15V2l11 10-11 10v-6H3z"/></svg></div>
+        <div class="fullscreen-direction previous" id="fullscreen-previous" aria-label="Previous"><svg viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path transform="translate(120 0) scale(-1 1)" d="M7 20H79V6Q79 2 83 5L116 29Q120 32 116 35L83 59Q79 62 79 58V44H7Q3 44 3 40V24Q3 20 7 20Z"/></svg></div>
+        <div class="fullscreen-direction next" id="fullscreen-next" aria-label="Next"><svg viewBox="0 0 120 64" preserveAspectRatio="none" aria-hidden="true"><path d="M7 20H79V6Q79 2 83 5L116 29Q120 32 116 35L83 59Q79 62 79 58V44H7Q3 44 3 40V24Q3 20 7 20Z"/></svg></div>
       </div>
       <div class="presenter-message" id="presenter-message" role="status" aria-live="polite"></div>
     </div>
@@ -502,6 +508,25 @@
       return hours ? `${sign}${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : `${sign}${minutes}:${String(seconds).padStart(2, '0')}`;
     }
 
+    function renderClock(node, text) {
+      if (node.dataset.time === text) return;
+      node.dataset.time = text;
+      node.setAttribute('aria-label', text);
+      const split = text.lastIndexOf(':');
+      const parts = [text.slice(0, split), text.slice(split + 1)];
+      const left = document.createElement('span'); left.className = 'clock-left';
+      const right = document.createElement('span'); right.className = 'clock-right';
+      const colon = document.createElement('span'); colon.className = 'clock-colon'; colon.textContent = ':';
+      [left, right].forEach((side, index) => {
+        for (const value of parts[index]) {
+          const digit = document.createElement('span'); digit.className = value === ':' ? 'clock-colon' : 'clock-digit'; digit.textContent = value; side.appendChild(digit);
+        }
+      });
+      [left, colon, right].forEach(part => part.setAttribute('aria-hidden', 'true'));
+      node.replaceChildren(left, colon, right);
+    }
+    ['clock', 'fullscreen-clock', 'mobile-clock'].forEach(id => renderClock($(id), '--:--'));
+
     function viewerTime(timer) {
       const raw = timer.remaining_seconds;
       const value = latestState?.config?.display?.overtime === 'stop' ? Math.max(0, raw) : raw;
@@ -531,7 +556,11 @@
       clock.style.fontSize = '';
       const rows = getComputedStyle(stage).gridTemplateRows.split(' ').map(parseFloat);
       const width = stage.clientWidth - parseFloat(getComputedStyle(stage).paddingLeft) - parseFloat(getComputedStyle(stage).paddingRight);
-      if (clock.scrollWidth > width && width > 0) clock.style.fontSize = `${parseFloat(getComputedStyle(clock).fontSize) * width / clock.scrollWidth * .98}px`;
+      const left = clock.querySelector('.clock-left');
+      const right = clock.querySelector('.clock-right');
+      const occupiedWidth = node => node ? Array.from(node.children).reduce((sum, child) => sum + child.getBoundingClientRect().width, 0) : 0;
+      const neededWidth = 2 * Math.max(occupiedWidth(left), occupiedWidth(right)) + (clock.querySelector('.clock-colon')?.getBoundingClientRect().width || 0);
+      if (neededWidth > width && width > 0) clock.style.fontSize = `${parseFloat(getComputedStyle(clock).fontSize) * width / neededWidth * .98}px`;
       const message = $('presenter-message');
       message.style.fontSize = '';
       if (rows[2] > 0 && message.scrollHeight > rows[2]) message.style.fontSize = `${parseFloat(getComputedStyle(message).fontSize) * rows[2] / message.scrollHeight * .95}px`;
@@ -560,9 +589,7 @@
       $('selected-program').textContent = `Program ${data.selected_program}`;
       $('mobile-program').textContent = `Program ${data.selected_program}`;
       const displayedTime = viewerTime(active);
-      $('clock').textContent = displayedTime;
-      $('fullscreen-clock').textContent = displayedTime;
-      $('mobile-clock').textContent = displayedTime;
+      ['clock', 'fullscreen-clock', 'mobile-clock'].forEach(id => renderClock($(id), displayedTime));
       $('metric-total').textContent = active.total;
       $('metric-elapsed').textContent = active.elapsed;
       $('metric-sumup').textContent = active.sumup;

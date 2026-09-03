@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.3 — 2026-09-03
+
+- Enlarged the full-screen cue arrows with taller shapes and longer shafts, and moved them closer together toward the center.
+- Preserved 13% idle arrow opacity, direction colors, and existing cue timing and flashing behavior.
+- Anchored the countdown colon in the center and placed digits in fixed-width slots to prevent shifting as the numbers change, including with proportional fonts.
+- Kept the 24:37 sample time limited to the isolated preview; installed apps continue displaying live timer data.
+
 ## 0.3.2 — 2026-09-03
 
 - Discovery now listens briefly for incoming serial data without sending commands. Valid, checksum-verified Limitimer status frames identify clock controllers.

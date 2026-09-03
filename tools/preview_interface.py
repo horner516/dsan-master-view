@@ -14,6 +14,7 @@ app.SHARED.config = app.deepcopy(app.DEFAULT_CONFIG)
 app.SHARED.config['limitimer']['enabled'] = False
 app.SHARED.config['display'].update(fixed_color=False)
 app.SHARED.data['limitimer'].update(status='connected', packet_count=1, data=app.parse_limitimer_frame(CAPTURED_FRAME))
+app.SHARED.data['limitimer']['data']['active'].update(remaining_seconds=24 * 60 + 37, remaining='24:37', running=False)
 
 class PreviewHandler(app.Handler):
     def send_bytes(self, body, content_type, status=app.HTTPStatus.OK):
