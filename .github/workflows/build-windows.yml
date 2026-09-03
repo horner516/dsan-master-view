@@ -55,7 +55,7 @@ jobs:
           mkdir -p dist/dmg-root
           cp -R "dist/D'San Master View.app" dist/dmg-root/
           ln -s /Applications dist/dmg-root/Applications
-          hdiutil create -volname "D'San Master View" -srcfolder dist/dmg-root -ov -format UDZO dist/DSanMasterView-0.2.0-macOS.dmg
+          hdiutil create -volname "D'San Master View" -srcfolder dist/dmg-root -ov -format UDZO dist/DSanMasterView-macOS.dmg
       - uses: actions/upload-artifact@v4
         with:
           name: DSanMasterView-macOS
