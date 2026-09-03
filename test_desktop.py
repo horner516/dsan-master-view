@@ -40,7 +40,7 @@ class DesktopTests(unittest.TestCase):
         api.server_port = 55001
         with patch('desktop.webbrowser.open', return_value=True) as browser:
             api.open_browser_fullscreen()
-        browser.assert_called_once_with('http://127.0.0.1:55001/?display=fullscreen', new=1)
+        browser.assert_called_once_with('http://127.0.0.1:55001/', new=1)
 
 
 if __name__ == '__main__':

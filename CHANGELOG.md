@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.8 — 2026-09-03
+
+- Bundled trusted certificates for HTTPS update checks and installer downloads, instead of relying on certificate files on the build machine.
+- Update failures now show the connection error or GitHub service status.
+- The desktop browser button opens the normal setup page with no fullscreen query tag or automatic fullscreen request.
+
 ## 0.2.7 — 2026-09-03
 
 - Fixed the page security policy blocking the desktop bridge used by update checks, installation, and opening the browser display.

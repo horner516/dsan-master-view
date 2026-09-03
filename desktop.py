@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import ssl
 import subprocess
 import sys
 import tempfile
@@ -15,12 +16,20 @@ import webbrowser
 from pathlib import Path
 
 import webview
+import certifi
 
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.7"
+APP_VERSION = "0.2.8"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
+
+
+def update_ssl_context() -> ssl.SSLContext:
+    # Frozen Python cannot rely on certificate paths from the build machine.
+    context = ssl.create_default_context()
+    context.load_verify_locations(cafile=certifi.where())
+    return context
 
 
 def version_tuple(value: str) -> tuple[int, ...]:
@@ -40,10 +49,10 @@ class DesktopApi:
         self.server_port = LOCAL_PORT
 
     def open_browser_fullscreen(self) -> dict[str, str]:
-        url = f"http://127.0.0.1:{self.server_port}/?display=fullscreen"
+        url = f"http://127.0.0.1:{self.server_port}/"
         if not webbrowser.open(url, new=1):
             raise RuntimeError("Could not open your browser.")
-        return {"message": "Display opened in your browser. Click Enter full screen there if prompted."}
+        return {"message": "Setup page opened in your browser."}
 
     def app_state(self) -> dict[str, bool]:
         return {"is_widget": self.is_widget, "on_top": self.on_top}
@@ -55,10 +64,14 @@ class DesktopApi:
             headers={"Accept": "application/vnd.github+json", "User-Agent": "DSan-Master-View"},
         )
         try:
-            with urllib.request.urlopen(request, timeout=10) as response:
+            with urllib.request.urlopen(request, timeout=15, context=update_ssl_context()) as response:
                 release = json.load(response)
-        except (urllib.error.URLError, TimeoutError, ValueError):
-            return {"update_available": False, "message": "Could not reach the update service."}
+        except urllib.error.HTTPError as error:
+            message = "GitHub is temporarily limiting update checks. Please try again later." if error.code in (403, 429) else f"Update service returned HTTP {error.code}. Please try again later."
+            return {"update_available": False, "message": message}
+        except (urllib.error.URLError, OSError, ValueError) as error:
+            reason = getattr(error, "reason", error)
+            return {"update_available": False, "message": f"Could not reach the update service: {reason}"}
 
         version = str(release.get("tag_name", "")).lstrip("v")
         assets = release.get("assets", [])
@@ -84,7 +97,7 @@ class DesktopApi:
         destination = Path(tempfile.gettempdir()) / f"DSanMasterView-Update{extension}"
         try:
             request = urllib.request.Request(self.pending_asset, headers={"User-Agent": "DSan-Master-View"})
-            with urllib.request.urlopen(request, timeout=60) as response, destination.open("wb") as output:
+            with urllib.request.urlopen(request, timeout=60, context=update_ssl_context()) as response, destination.open("wb") as output:
                 output.write(response.read())
             if sys.platform == "win32":
                 os.startfile(destination)  # type: ignore[attr-defined]
@@ -106,6 +119,9 @@ class DesktopApi:
 
 
 def run_desktop(*, widget: bool) -> None:
+    if "--check-update" in sys.argv:
+        print(json.dumps(DesktopApi(widget).check_for_updates()), flush=True)
+        return
     server = create_server()
     server.desktop_bridge = True
     threading.Thread(target=server.serve_forever, name="local-web-server", daemon=True).start()

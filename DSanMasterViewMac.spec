@@ -33,8 +33,8 @@ app = BUNDLE(
     bundle_identifier="show.stg.dsan-master-view",
     info_plist={
         "CFBundleDisplayName": "D'San Master View",
-        "CFBundleShortVersionString": "0.2.7",
-        "CFBundleVersion": "0.2.7",
+        "CFBundleShortVersionString": "0.2.8",
+        "CFBundleVersion": "0.2.8",
         "LSUIElement": False,
         "NSHighResolutionCapable": True,
     },
