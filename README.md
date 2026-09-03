@@ -16,6 +16,12 @@ The Windows installer is built automatically by GitHub Actions. Run the installe
 
 To publish an update, change `APP_VERSION` in `desktop.py` and `MyAppVersion` in `installer.iss`, then push a matching tag such as `v0.1.1`. The release installer is used by the widget’s update checker.
 
+## macOS application
+
+Download the macOS `.dmg`, drag **D’San Master View** into Applications, and launch it like a normal Mac app. It uses a standard resizable application window and keeps the D’S logo visible in the Dock. The same right-click menu can check for updates or optionally keep the viewer above other windows.
+
+The first unsigned build may require Control-clicking the app and choosing **Open**. A future Apple Developer ID signature can remove this Gatekeeper warning.
+
 ## Supported data
 
 - Limitimer: selected countdown, total, elapsed, remaining, sum-up threshold, run state, signal color, timer direction, and checksum validation.
