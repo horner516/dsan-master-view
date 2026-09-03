@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080b10">
+  <title>D’San Master View</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #080b10;
+      --panel: #111721;
+      --panel-2: #161e2a;
+      --line: #263244;
+      --muted: #93a4b8;
+      --text: #f5f8fb;
+      --cyan: #4dd6e8;
+      --green: #35d07f;
+      --yellow: #ffd166;
+      --red: #ff5263;
+      --shadow: 0 22px 60px rgba(0, 0, 0, .28);
+      --clock-font: Consolas, "SFMono-Regular", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 18% -10%, rgba(77,214,232,.09), transparent 34rem),
+        linear-gradient(180deg, #0b1017 0%, var(--bg) 45%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 16px;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { width: min(1460px, 100%); margin: 0 auto; padding: 24px; }
+    header { display: flex; justify-content: space-between; align-items: center; gap: 18px; margin-bottom: 22px; }
+    .identity { display: flex; align-items: center; gap: 13px; }
+    .mark { width: 42px; height: 42px; border: 1px solid #365267; border-radius: 12px; display: grid; place-items: center; background: #111d27; color: var(--cyan); font-weight: 800; letter-spacing: -.08em; }
+    h1 { margin: 0; font-size: 1.12rem; letter-spacing: .01em; }
+    .subtitle { color: var(--muted); font-size: .86rem; margin-top: 3px; }
+    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .settings-button, .primary, .secondary {
+      border: 1px solid var(--line); border-radius: 10px; padding: 10px 15px; color: var(--text); background: var(--panel-2);
+    }
+    .settings-button:hover, .secondary:hover { border-color: #486078; }
+    .primary { background: var(--cyan); color: #041014; border-color: transparent; font-weight: 750; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(330px, .8fr); gap: 18px; }
+    .card { background: rgba(17,23,33,.94); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); overflow: hidden; }
+    .card-head { min-height: 64px; display: flex; align-items: center; justify-content: space-between; padding: 16px 19px; border-bottom: 1px solid var(--line); }
+    .card-title { display: flex; align-items: center; gap: 10px; font-weight: 720; }
+    .status { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: .8rem; text-transform: capitalize; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #657386; box-shadow: 0 0 0 4px rgba(101,115,134,.1); }
+    .status[data-state="connected"] .status-dot { background: var(--green); box-shadow: 0 0 0 4px rgba(53,208,127,.12); }
+    .status[data-state="connecting"] .status-dot, .status[data-state="waiting"] .status-dot { background: var(--yellow); }
+    .timer-stage { display: grid; grid-template-columns: 80px 1fr; min-height: 340px; }
+    body.hide-lights .timer-stage { grid-template-columns: 1fr; }
+    body.hide-lights .lights { display: none; }
+    .lights { display: flex; flex-direction: column; justify-content: center; gap: 19px; align-items: center; border-right: 1px solid var(--line); background: #0d131b; }
+    .lamp { width: 31px; height: 31px; border-radius: 50%; background: #222b37; border: 1px solid #34404f; }
+    .lamp.on.green { background: var(--green); box-shadow: 0 0 24px rgba(53,208,127,.68); }
+    .lamp.on.yellow { background: var(--yellow); box-shadow: 0 0 24px rgba(255,209,102,.68); }
+    .lamp.on.red { background: var(--red); box-shadow: 0 0 24px rgba(255,82,99,.68); }
+    .time-wrap { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; text-align: center; }
+    .program-chip { color: var(--cyan); border: 1px solid rgba(77,214,232,.28); background: rgba(77,214,232,.07); border-radius: 999px; padding: 7px 12px; font-size: .78rem; font-weight: 780; text-transform: uppercase; letter-spacing: .1em; }
+    .clock { font-family: var(--clock-font); font-size: clamp(5rem, 11vw, 10.5rem); line-height: .92; font-weight: 760; letter-spacing: -.075em; margin: 27px 0 22px; font-variant-numeric: tabular-nums; text-shadow: 0 0 40px rgba(245,248,251,.08); }
+    .timer-state { color: var(--muted); display: flex; align-items: center; gap: 10px; }
+    .run-icon { width: 8px; height: 8px; border-radius: 2px; background: var(--muted); }
+    .timer-state.running .run-icon { border-radius: 50%; background: var(--green); animation: pulse 1.4s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: .45; } }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
+    .metric { padding: 16px 18px; border-right: 1px solid var(--line); }
+    .metric:last-child { border: 0; }
+    .metric-label { color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 7px; }
+    .metric-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+    .cue-body { min-height: 340px; display: grid; place-items: center; padding: 24px; position: relative; }
+    .cue-display { width: min(100%, 360px); aspect-ratio: 1.12; border: 1px solid #334156; border-radius: 24px; background: linear-gradient(145deg, #192230, #0c1118); display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
+    .cue-display::before { content: ""; position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; }
+    .cue-symbol { width: 8.5rem; height: 6.4rem; color: #57677c; transition: color .12s, transform .12s, text-shadow .12s; }
+    .cue-symbol svg, .fullscreen-direction svg { display: block; width: 100%; height: 100%; fill: currentColor; }
+    .cue-label { color: var(--muted); margin-top: 8px; font-size: .9rem; }
+    .cue-display.active .cue-symbol { transform: scale(1.04); }
+    .cue-display.active.next .cue-symbol { color: var(--green); text-shadow: 0 0 35px rgba(53,208,127,.42); }
+    .cue-display.active.previous .cue-symbol { color: var(--red); text-shadow: 0 0 35px rgba(255,82,99,.35); }
+    .cue-display.active.blank_on .cue-symbol { color: var(--yellow); text-shadow: 0 0 35px rgba(255,209,102,.4); }
+    .cue-display.flash .cue-symbol, .fullscreen-direction.flash { animation: cue-flash .5s linear; }
+    @keyframes cue-flash { 0%, 45%, 100% { opacity: 1; } 20%, 70% { opacity: .08; } }
+    .cue-meta { display: flex; justify-content: space-between; padding: 15px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
+    .fullscreen-view { position: fixed; inset: 0; z-index: 100; visibility: hidden; pointer-events: none; background: #000; display: grid; place-items: center; }
+    .fullscreen-view:fullscreen { visibility: visible; pointer-events: auto; }
+    .fullscreen-stage { width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9; display: grid; grid-template-rows: minmax(0, 1fr) 28%; place-items: center; padding: 3vh 3vw 4vh; background: radial-gradient(circle at 50% 44%, #111a24 0, #05080c 42%, #000 74%); overflow: hidden; }
+    .fullscreen-clock { align-self: end; max-width: 100%; font-family: var(--clock-font); font-size: min(28vw, 49vh); font-weight: 760; line-height: .86; letter-spacing: -.085em; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
+    .fullscreen-directions { align-self: start; width: min(68vw, 1250px); display: grid; grid-template-columns: 1fr 1fr; gap: min(13vw, 240px); place-items: center; }
+    .fullscreen-direction { width: min(15vw, 27vh); height: min(10vw, 18vh); opacity: .13; transform: scale(.94); transition: opacity .12s, transform .12s, filter .12s; }
+    .fullscreen-direction.active { opacity: 1; transform: scale(1.04); }
+    .fullscreen-direction.next { color: var(--green); }
+    .fullscreen-direction.next.active { filter: drop-shadow(0 0 3vw rgba(53,208,127,.58)); }
+    .fullscreen-direction.previous { color: var(--red); }
+    .fullscreen-direction.previous.active { filter: drop-shadow(0 0 3vw rgba(255,82,99,.58)); }
+    dialog { width: min(620px, calc(100% - 32px)); border: 1px solid var(--line); border-radius: 18px; padding: 0; background: var(--panel); color: var(--text); box-shadow: 0 30px 100px #000; }
+    dialog::backdrop { background: rgba(2,5,9,.78); backdrop-filter: blur(4px); }
+    .dialog-head { padding: 20px 22px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; }
+    .dialog-head h2 { margin: 0; font-size: 1.1rem; }
+    .close { border: 0; background: transparent; color: var(--muted); font-size: 1.4rem; padding: 4px 8px; }
+    form { padding: 22px; }
+    fieldset { border: 1px solid var(--line); border-radius: 13px; padding: 17px; margin: 0 0 16px; }
+    legend { padding: 0 8px; font-weight: 700; }
+    .enable { float: right; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .86rem; }
+    .fields { display: grid; grid-template-columns: 1fr 130px; gap: 12px; clear: both; }
+    label > span { display: block; color: var(--muted); font-size: .78rem; margin-bottom: 6px; }
+    input[type="text"], input[type="number"], select { width: 100%; color: var(--text); background: #0c1118; border: 1px solid var(--line); border-radius: 9px; padding: 10px 11px; }
+    input:focus, select:focus { outline: 2px solid rgba(77,214,232,.35); border-color: var(--cyan); }
+    .display-setting { margin-top: 3px; }
+    .display-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .toggle-row { display: flex; align-items: center; gap: 9px; color: var(--text); min-height: 42px; padding-top: 18px; }
+    .form-error { min-height: 22px; color: var(--red); font-size: .84rem; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .empty { color: var(--muted); }
+    .widget-menu { position: fixed; z-index: 300; display: none; min-width: 190px; padding: 6px; border: 1px solid var(--line); border-radius: 11px; background: #111721; box-shadow: 0 18px 50px rgba(0,0,0,.52); }
+    .widget-menu.open { display: grid; }
+    .widget-menu button { border: 0; border-radius: 7px; padding: 9px 11px; color: var(--text); background: transparent; text-align: left; }
+    .widget-menu button:hover { background: var(--panel-2); }
+    .toast { position: fixed; left: 50%; bottom: 22px; z-index: 310; transform: translate(-50%, 20px); opacity: 0; pointer-events: none; padding: 10px 15px; border: 1px solid var(--line); border-radius: 10px; background: #111721; box-shadow: var(--shadow); transition: opacity .2s, transform .2s; }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .fullscreen-clock { font-size: min(27vw, 47vh); }
+    }
+    @media (max-width: 560px) {
+      .shell { padding: 15px; }
+      .subtitle { display: none; }
+      .timer-stage { grid-template-columns: 55px 1fr; min-height: 280px; }
+      .lights { gap: 14px; }
+      .lamp { width: 25px; height: 25px; }
+      .time-wrap { padding: 24px 12px; }
+      .clock { font-size: clamp(4.2rem, 24vw, 7rem); }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .fields { grid-template-columns: 1fr; }
+      .display-fields { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="pywebview-drag-region">
+      <div class="identity">
+        <div class="mark">D’S</div>
+        <div><h1>D’San Master View</h1><div class="subtitle">Limitimer and PerfectCue network display</div></div>
+      </div>
+      <div class="header-actions">
+        <button class="settings-button" id="open-fullscreen" type="button">Full screen</button>
+        <button class="settings-button" id="open-settings" type="button">Settings</button>
+      </div>
+    </header>
+
+    <section class="grid" aria-label="Live device status">
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title">Limitimer</div>
+          <div class="status" id="limitimer-status"><span class="status-dot"></span><span>Waiting</span></div>
+        </div>
+        <div class="timer-stage">
+          <div class="lights" aria-label="Signal light">
+            <span class="lamp green" id="lamp-green"></span>
+            <span class="lamp yellow" id="lamp-yellow"></span>
+            <span class="lamp red" id="lamp-red"></span>
+          </div>
+          <div class="time-wrap">
+            <div class="program-chip" id="selected-program">Program —</div>
+            <div class="clock" id="clock">--:--</div>
+            <div class="timer-state" id="timer-state"><span class="run-icon"></span><span>Waiting for timer data</span></div>
+          </div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-label">Total</div><div class="metric-value" id="metric-total">—</div></div>
+          <div class="metric"><div class="metric-label">Elapsed</div><div class="metric-value" id="metric-elapsed">—</div></div>
+          <div class="metric"><div class="metric-label">Sum-up</div><div class="metric-value" id="metric-sumup">—</div></div>
+          <div class="metric"><div class="metric-label">Packets</div><div class="metric-value" id="metric-packets">0</div></div>
+        </div>
+      </article>
+
+      <article class="card">
+        <div class="card-head">
+          <div class="card-title">PerfectCue</div>
+          <div class="status" id="perfectcue-status"><span class="status-dot"></span><span>Disabled</span></div>
+        </div>
+        <div class="cue-body">
+          <div class="cue-display" id="cue-display">
+            <div><div class="cue-symbol" id="cue-symbol">·</div><div class="cue-label" id="cue-label">Waiting for cue</div></div>
+          </div>
+        </div>
+        <div class="cue-meta"><span id="cue-code">No events</span><span id="cue-count">0 cues</span></div>
+      </article>
+    </section>
+
+  </main>
+
+  <section class="fullscreen-view" id="fullscreen-view" aria-label="Full-screen timer and cue">
+    <div class="fullscreen-stage">
+      <div class="fullscreen-clock" id="fullscreen-clock">--:--</div>
+      <div class="fullscreen-directions" aria-live="assertive">
+        <div class="fullscreen-direction previous" id="fullscreen-previous" aria-label="Previous"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M29 8H14V2L3 12l11 10v-6h15z"/></svg></div>
+        <div class="fullscreen-direction next" id="fullscreen-next" aria-label="Next"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 8h15V2l11 10-11 10v-6H3z"/></svg></div>
+      </div>
+    </div>
+  </section>
+
+  <dialog id="settings-dialog">
+    <div class="dialog-head"><h2>Settings</h2><button class="close" id="close-settings" type="button" aria-label="Close">×</button></div>
+    <form id="settings-form">
+      <fieldset>
+        <legend>Limitimer</legend>
+        <label class="enable"><input type="checkbox" id="limitimer-enabled"> Enabled</label>
+        <div class="fields">
+          <label><span>IP address or hostname</span><input id="limitimer-host" type="text" autocomplete="off" placeholder="10.21.0.119"></label>
+          <label><span>TCP port</span><input id="limitimer-port" type="number" min="1" max="65535" inputmode="numeric"></label>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend>PerfectCue</legend>
+        <label class="enable"><input type="checkbox" id="perfectcue-enabled"> Enabled</label>
+        <div class="fields">
+          <label><span>IP address or hostname</span><input id="perfectcue-host" type="text" autocomplete="off" placeholder="10.21.0.120"></label>
+          <label><span>TCP port</span><input id="perfectcue-port" type="number" min="1" max="65535" inputmode="numeric"></label>
+        </div>
+      </fieldset>
+      <fieldset class="display-setting">
+        <legend>Display</legend>
+        <div class="display-fields">
+          <label><span>At zero</span>
+            <select id="overtime-mode">
+              <option value="continue">Count past zero</option>
+              <option value="stop">Stop at 00:00</option>
+            </select>
+          </label>
+          <label><span>Clock font</span>
+            <select id="clock-font">
+              <option value="mono">Digital mono</option>
+              <option value="sans">Clean sans</option>
+              <option value="condensed">Condensed</option>
+              <option value="serif">Classic serif</option>
+            </select>
+          </label>
+          <label class="toggle-row"><input type="checkbox" id="show-lights"> Show Limitimer indicator lights</label>
+        </div>
+      </fieldset>
+      <div class="form-error" id="form-error" role="alert"></div>
+      <div class="dialog-actions"><button class="secondary" id="cancel-settings" type="button">Cancel</button><button class="primary" type="submit">Save and connect</button></div>
+    </form>
+  </dialog>
+
+  <div class="widget-menu" id="widget-menu" role="menu">
+    <button id="check-updates" type="button" role="menuitem">Check for updates</button>
+    <button id="toggle-on-top" type="button" role="menuitem">Keep on top: On</button>
+    <button id="close-widget" type="button" role="menuitem">Close widget</button>
+  </div>
+  <div class="toast" id="toast" role="status"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let latestState = null;
+    let cueTimer = null;
+    let cueFlashTimer = null;
+    let lastCueDirection = null;
+    let cueVisibleUntil = 0;
+    let desktopMode = false;
+    let toastTimer = null;
+    const arrows = {
+      next: '<svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 8h15V2l11 10-11 10v-6H3z"/></svg>',
+      previous: '<svg viewBox="0 0 32 24" aria-hidden="true"><path d="M29 8H14V2L3 12l11 10v-6h15z"/></svg>'
+    };
+    const fontStacks = {
+      mono: 'Consolas, "SFMono-Regular", Menlo, monospace',
+      sans: 'Arial, "Segoe UI", sans-serif',
+      condensed: '"Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif',
+      serif: 'Georgia, "Times New Roman", serif'
+    };
+
+    function setStatus(id, value, error) {
+      const node = $(id);
+      node.dataset.state = value;
+      node.querySelector('span:last-child').textContent = error && value === 'disconnected' ? 'Disconnected' : value;
+      node.title = error || '';
+    }
+
+    function formatSeconds(value) {
+      const sign = value < 0 ? '−' : '';
+      value = Math.abs(Math.trunc(value));
+      const hours = Math.floor(value / 3600);
+      const minutes = Math.floor((value % 3600) / 60);
+      const seconds = value % 60;
+      return hours ? `${sign}${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}` : `${sign}${minutes}:${String(seconds).padStart(2, '0')}`;
+    }
+
+    function viewerTime(timer) {
+      const raw = timer.remaining_seconds;
+      const value = latestState?.config?.display?.overtime === 'stop' ? Math.max(0, raw) : raw;
+      return formatSeconds(value);
+    }
+
+    function applyDisplaySettings(config) {
+      const display = config?.display || {};
+      document.documentElement.style.setProperty('--clock-font', fontStacks[display.font] || fontStacks.mono);
+      document.body.classList.toggle('hide-lights', display.show_lights === false);
+    }
+
+    function renderLimitimer(device) {
+      setStatus('limitimer-status', device.status, device.error);
+      $('metric-packets').textContent = device.packet_count.toLocaleString();
+      if (!device.data) return;
+      const data = device.data;
+      const active = data.active;
+      $('selected-program').textContent = `Program ${data.selected_program}`;
+      const displayedTime = viewerTime(active);
+      $('clock').textContent = displayedTime;
+      $('fullscreen-clock').textContent = displayedTime;
+      $('metric-total').textContent = active.total;
+      $('metric-elapsed').textContent = active.elapsed;
+      $('metric-sumup').textContent = active.sumup;
+      $('timer-state').className = `timer-state ${active.running ? 'running' : ''}`;
+      $('timer-state').querySelector('span:last-child').textContent = active.running ? 'Running' : 'Stopped';
+      ['green', 'yellow', 'red'].forEach(color => $('lamp-' + color).classList.toggle('on', active.signal === color));
+    }
+
+    function renderCue(device) {
+      setStatus('perfectcue-status', device.status, device.error);
+      $('cue-count').textContent = `${device.event_count} cue${device.event_count === 1 ? '' : 's'}`;
+      const event = device.last_event;
+      if (!event) return;
+      const signature = `${event.at}-${event.code}`;
+      if ($('cue-display').dataset.signature === signature) return;
+      $('cue-display').dataset.signature = signature;
+      const symbols = {blank_off: '⊘', blank_on: '⊘'};
+      const now = Date.now();
+      const directional = event.kind === 'next' || event.kind === 'previous';
+      const repeatedDirection = directional && event.kind === lastCueDirection && now < cueVisibleUntil;
+      if (directional) lastCueDirection = event.kind;
+      else lastCueDirection = null;
+      if (arrows[event.kind]) $('cue-symbol').innerHTML = arrows[event.kind];
+      else $('cue-symbol').textContent = symbols[event.kind] || '·';
+      $('cue-label').textContent = `${event.label} · ${event.detail}`;
+      $('cue-code').textContent = event.code;
+      const flashClass = repeatedDirection ? ' flash' : '';
+      $('cue-display').className = `cue-display active ${event.kind}${flashClass}`;
+      const fullscreenArrows = [$('fullscreen-previous'), $('fullscreen-next')];
+      fullscreenArrows.forEach(arrow => arrow.classList.remove('active', 'flash'));
+      if (directional) {
+        const activeArrow = event.kind === 'next' ? $('fullscreen-next') : $('fullscreen-previous');
+        activeArrow.classList.add('active');
+        if (repeatedDirection) activeArrow.classList.add('flash');
+      }
+      cueVisibleUntil = now + 2000;
+      clearTimeout(cueFlashTimer);
+      if (repeatedDirection) cueFlashTimer = setTimeout(() => {
+        $('cue-display').classList.remove('flash');
+        fullscreenArrows.forEach(arrow => arrow.classList.remove('flash'));
+      }, 500);
+      clearTimeout(cueTimer);
+      cueTimer = setTimeout(() => {
+        $('cue-display').classList.remove('active');
+        fullscreenArrows.forEach(arrow => arrow.classList.remove('active'));
+      }, 2000);
+    }
+
+    function fillSettings(config) {
+      ['limitimer', 'perfectcue'].forEach(name => {
+        $(`${name}-host`).value = config[name].host;
+        $(`${name}-port`).value = config[name].port;
+        $(`${name}-enabled`).checked = config[name].enabled;
+      });
+      $('overtime-mode').value = config.display?.overtime || 'continue';
+      $('clock-font').value = config.display?.font || 'mono';
+      $('show-lights').checked = config.display?.show_lights !== false;
+    }
+
+    async function poll() {
+      try {
+        const response = await fetch('/api/state', {cache: 'no-store'});
+        latestState = await response.json();
+        applyDisplaySettings(latestState.config);
+        renderLimitimer(latestState.limitimer);
+        renderCue(latestState.perfectcue);
+      } catch (_) {
+        setStatus('limitimer-status', 'disconnected', 'Local monitor is unavailable');
+        setStatus('perfectcue-status', 'disconnected', 'Local monitor is unavailable');
+      }
+    }
+
+    $('open-settings').addEventListener('click', () => { if (latestState) fillSettings(latestState.config); $('form-error').textContent = ''; $('settings-dialog').showModal(); });
+    $('open-fullscreen').addEventListener('click', async () => {
+      try { await $('fullscreen-view').requestFullscreen(); } catch (_) {}
+    });
+    ['close-settings', 'cancel-settings'].forEach(id => $(id).addEventListener('click', () => $('settings-dialog').close()));
+    $('settings-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const payload = {};
+      for (const name of ['limitimer', 'perfectcue']) payload[name] = {host: $(`${name}-host`).value.trim(), port: Number($(`${name}-port`).value), enabled: $(`${name}-enabled`).checked};
+      payload.display = {overtime: $('overtime-mode').value, font: $('clock-font').value, show_lights: $('show-lights').checked};
+      try {
+        const response = await fetch('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not save settings');
+        $('settings-dialog').close();
+        await poll();
+      } catch (error) { $('form-error').textContent = error.message; }
+    });
+
+    function showToast(message) {
+      $('toast').textContent = message;
+      $('toast').classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => $('toast').classList.remove('show'), 3500);
+    }
+
+    window.addEventListener('pywebviewready', () => { desktopMode = true; });
+    window.addEventListener('contextmenu', event => {
+      if (!desktopMode) return;
+      event.preventDefault();
+      const menu = $('widget-menu');
+      menu.style.left = `${Math.min(event.clientX, innerWidth - 205)}px`;
+      menu.style.top = `${Math.min(event.clientY, innerHeight - 130)}px`;
+      menu.classList.add('open');
+    });
+    window.addEventListener('click', () => $('widget-menu').classList.remove('open'));
+    $('check-updates').addEventListener('click', async event => {
+      event.stopPropagation();
+      $('widget-menu').classList.remove('open');
+      showToast('Checking for updates…');
+      try {
+        const result = await window.pywebview.api.check_for_updates();
+        if (result.update_available && window.confirm(result.message)) {
+          showToast('Downloading update…');
+          const installed = await window.pywebview.api.install_update();
+          showToast(installed.message);
+        } else if (!result.update_available) showToast(result.message);
+      } catch (_) { showToast('Could not check for updates.'); }
+    });
+    $('toggle-on-top').addEventListener('click', async event => {
+      event.stopPropagation();
+      const result = await window.pywebview.api.toggle_on_top();
+      $('toggle-on-top').textContent = `Keep on top: ${result.on_top ? 'On' : 'Off'}`;
+      $('widget-menu').classList.remove('open');
+    });
+    $('close-widget').addEventListener('click', () => window.pywebview.api.close_widget());
+
+    poll();
+    setInterval(poll, 350);
+  </script>
+</body>
+</html>
