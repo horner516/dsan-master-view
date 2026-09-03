@@ -72,8 +72,15 @@
     .metrics { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); }
     .metric { padding: 16px 18px; border-right: 1px solid var(--line); }
     .metric:last-child { border: 0; }
+    .metric-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .metric-copy { border: 1px solid var(--line); border-radius: 7px; padding: 3px 9px; background: #0e141c; color: var(--muted); font-size: .74rem; }
     .metric-label { color: var(--muted); font-size: .74rem; text-transform: uppercase; letter-spacing: .09em; margin-bottom: 7px; }
     .metric-value { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+    .metric-value.multi-line { white-space: pre-wrap; text-align: left; }
+    .network-links { display: grid; gap: 7px; text-align: left; align-content: start; }
+    .network-links a { color: var(--cyan); text-decoration: none; font-size: .86rem; }
+    .network-links a:hover { text-decoration: underline; }
+    .network-metrics { grid-template-columns: 150px 1fr; }
     .cue-body { min-height: 340px; display: grid; place-items: center; padding: 24px; position: relative; }
     .cue-display { width: min(100%, 360px); aspect-ratio: 1.12; border: 1px solid #334156; border-radius: 24px; background: linear-gradient(145deg, #192230, #0c1118); display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
     .cue-display::before { content: ""; position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; }
@@ -192,10 +199,31 @@
         <button class="settings-button" id="open-fullscreen" type="button">Full screen</button>
         <button class="settings-button" id="open-mobile" type="button">Mobile view</button>
         <button class="settings-button" id="open-settings" type="button">Settings</button>
+        <button class="settings-button" id="update-button" type="button">Check for updates</button>
       </div>
     </header>
 
-    <section class="grid" aria-label="Live device status">
+      <section class="grid" aria-label="Live device status">
+      <article class="card">
+        <div class="card-head"><div class="card-title">Network access</div></div>
+        <div class="metrics network-metrics">
+          <div class="metric">
+            <div class="metric-label">Port</div>
+            <div class="metric-row">
+              <div class="metric-value" id="server-port">—</div>
+              <button class="metric-copy" type="button" id="copy-server-port">Copy</button>
+            </div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Machine IPs</div>
+            <div class="metric-row">
+              <div class="metric-value network-links" id="server-ips">—</div>
+              <button class="metric-copy" type="button" id="copy-server-ips">Copy</button>
+            </div>
+          </div>
+        </div>
+      </article>
+
       <article class="card">
         <div class="card-head">
           <div class="card-title">Limitimer</div>
@@ -475,6 +503,27 @@
       }, 2000);
     }
 
+    function renderNetworkInfo(network) {
+      if (!network?.server) return;
+      $('server-port').textContent = String(network.server.port);
+      const ips = network.server.ip_addresses || [];
+      const urls = ips.map(ip => `http://${ip}:${network.server.port}`);
+      const container = $('server-ips');
+      container.textContent = '';
+      if (!urls.length) {
+        container.textContent = 'N/A';
+        return;
+      }
+      for (const url of urls) {
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener';
+        anchor.textContent = url;
+        container.appendChild(anchor);
+      }
+    }
+
     function fillSettings(config) {
       ['limitimer', 'perfectcue'].forEach(name => {
         $(`${name}-host`).value = config[name].host;
@@ -505,11 +554,21 @@
         const response = await fetch('/api/state', {cache: 'no-store'});
         latestState = await response.json();
         applyDisplaySettings(latestState.config);
+        renderNetworkInfo(latestState.network);
         renderLimitimer(latestState.limitimer);
         renderCue(latestState.perfectcue);
       } catch (_) {
         setStatus('limitimer-status', 'disconnected', 'Local monitor is unavailable');
         setStatus('perfectcue-status', 'disconnected', 'Local monitor is unavailable');
+      }
+    }
+
+    async function copyToClipboard(value) {
+      try {
+        await navigator.clipboard.writeText(value);
+        showToast('Copied to clipboard');
+      } catch (_) {
+        showToast('Clipboard not available');
       }
     }
 
@@ -528,6 +587,11 @@
       $('open-mobile').focus();
     });
     $('mobile-settings').addEventListener('click', () => $('open-settings').click());
+    $('copy-server-port').addEventListener('click', () => copyToClipboard($('server-port').textContent || ''));
+    $('copy-server-ips').addEventListener('click', () => {
+      const links = Array.from($('server-ips').querySelectorAll('a')).map(link => link.href);
+      copyToClipboard(links.length ? links.join('\n') : ($('server-ips').textContent || ''));
+    });
     ['close-settings', 'cancel-settings'].forEach(id => $(id).addEventListener('click', () => $('settings-dialog').close()));
     $('require-auth').addEventListener('change', toggleAuthFields);
     $('settings-form').addEventListener('submit', async (event) => {
@@ -569,9 +633,15 @@
       menu.classList.add('open');
     });
     window.addEventListener('click', () => $('widget-menu').classList.remove('open'));
-    $('check-updates').addEventListener('click', async event => {
+    async function checkForUpdates(event) {
       event.stopPropagation();
       $('widget-menu').classList.remove('open');
+      if (!desktopMode) {
+        window.open('https://github.com/horner516/dsan-master-view/releases/latest', '_blank', 'noopener,noreferrer');
+        return;
+      }
+      $('update-button').disabled = true;
+      $('check-updates').disabled = true;
       showToast('Checking for updates…');
       try {
         const result = await window.pywebview.api.check_for_updates();
@@ -581,7 +651,13 @@
           showToast(installed.message);
         } else if (!result.update_available) showToast(result.message);
       } catch (_) { showToast('Could not check for updates.'); }
-    });
+      finally {
+        $('update-button').disabled = false;
+        $('check-updates').disabled = false;
+      }
+    }
+    $('check-updates').addEventListener('click', checkForUpdates);
+    $('update-button').addEventListener('click', checkForUpdates);
     $('toggle-on-top').addEventListener('click', async event => {
       event.stopPropagation();
       const result = await window.pywebview.api.toggle_on_top();

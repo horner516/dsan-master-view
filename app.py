@@ -43,6 +43,33 @@ DEFAULT_CONFIG = {
         "password_hash": "",
     },
 }
+NETWORK_REFRESH_SECONDS = 30
+
+
+def local_ipv4_addresses() -> list[str]:
+    candidates: set[str] = set()
+    try:
+        hostname = socket.gethostname()
+        for result in socket.getaddrinfo(hostname, None, family=socket.AF_INET):
+            address = result[4][0]
+            if address and address != "127.0.0.1":
+                candidates.add(address)
+    except OSError:
+        pass
+
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+            probe.settimeout(0.25)
+            probe.connect(("1.1.1.1", 53))
+            address = probe.getsockname()[0]
+            if address and address != "127.0.0.1":
+                candidates.add(address)
+    except OSError:
+        pass
+
+    if not candidates:
+        candidates.add("127.0.0.1")
+    return sorted(candidates, key=lambda item: [int(part) for part in item.split(".")])
 
 
 def iso_now() -> str:
@@ -135,6 +162,13 @@ class SharedState:
         self.lock = threading.RLock()
         self.config = self._load_config()
         self.config_version = 0
+        self.network_cache_at = 0.0
+        self.network_cache: dict[str, Any] = {
+            "server": {
+                "port": LOCAL_PORT,
+                "ip_addresses": local_ipv4_addresses(),
+            }
+        }
         self.data: dict[str, Any] = {
             "limitimer": {
                 "status": "waiting",
@@ -173,7 +207,20 @@ class SharedState:
 
     def snapshot(self) -> dict[str, Any]:
         with self.lock:
-            return {"config": public_config(self.config), **deepcopy(self.data)}
+            return {"config": public_config(self.config), "network": self.network_status(), **deepcopy(self.data)}
+
+    def network_status(self) -> dict[str, Any]:
+        now = time.time()
+        with self.lock:
+            if now - self.network_cache_at > NETWORK_REFRESH_SECONDS:
+                self.network_cache = {
+                    "server": {
+                        "port": LOCAL_PORT,
+                        "ip_addresses": local_ipv4_addresses(),
+                    }
+                }
+                self.network_cache_at = now
+            return deepcopy(self.network_cache)
 
     def set_config(self, config: dict[str, Any]) -> dict[str, Any]:
         with self.lock:

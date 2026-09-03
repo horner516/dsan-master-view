@@ -18,7 +18,7 @@ import webview
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.1"
+APP_VERSION = "0.2.2"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 
@@ -41,6 +41,7 @@ class DesktopApi:
         return {"is_widget": self.is_widget, "on_top": self.on_top}
 
     def check_for_updates(self) -> dict[str, object]:
+        self.pending_asset = None
         request = urllib.request.Request(
             f"https://api.github.com/repos/{UPDATE_REPOSITORY}/releases/latest",
             headers={"Accept": "application/vnd.github+json", "User-Agent": "DSan-Master-View"},

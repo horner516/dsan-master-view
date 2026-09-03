@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — 2026-09-03
+
+- Added a visible Check for updates button on Mac and Windows, with the latest release page available from the browser viewer.
+- Fixed copied network links so each address appears on its own line.
+- Added ready-to-open, one-click LAN access links in the Network access card.
+- Added copy buttons for the dashboard server port and URL list.
+- Network access URLs now render as clickable `http://<ip>:<port>` links for remote configuration from other computers.
+
 ## 0.2.1 — 2026-09-03
 
 - Enabled dashboard viewing and configuration from other computers on the same trusted network.
