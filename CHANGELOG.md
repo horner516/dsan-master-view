@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2 — 2026-09-03
+
+- Discovery now listens briefly for incoming serial data without sending commands. Valid, checksum-verified Limitimer status frames identify clock controllers.
+- Cue command bytes are labeled Possible PerfectCue; silent or unrecognized endpoints remain Unknown. Device selection stays manual.
+
 ## 0.3.1 — 2026-09-03
 
 - Added Settings network discovery with a user-selected local subnet and up to four configurable TCP ports.

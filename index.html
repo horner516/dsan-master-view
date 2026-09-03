@@ -376,7 +376,7 @@
           <label><span>Subnet to scan</span><input id="scan-subnet" type="text" placeholder="10.21.0.0/24"></label>
           <label><span>TCP ports (comma-separated)</span><input id="scan-ports" type="text" value="6120" placeholder="6120, 4001"></label>
         </div>
-        <p class="access-note">Scan up to 256 addresses and four ports. Results are reachable ports, not confirmed device types. Choose which device to use below, then Save and connect. Manual IP entry remains available.</p>
+        <p class="access-note">Scan up to 256 addresses and four ports. The scan listens for valid Limitimer status frames. PerfectCue may remain unknown until a button is pressed; cue bytes are labeled as a possible match. Choose a device, then Save and connect.</p>
         <p class="access-note">Some serial adapters allow only one connection; scanning may briefly occupy a connection. Already-connected devices in this app are listed without probing them.</p>
         <button class="secondary" id="scan-devices" type="button">Scan for devices</button>
         <div id="scan-status" role="status" aria-live="polite"></div>
@@ -767,7 +767,7 @@
     $('scan-devices').addEventListener('click', async () => {
       const button = $('scan-devices');
       button.disabled = true;
-      $('scan-status').textContent = 'Scanning… This may take about 20 seconds. You can keep using the display.';
+      $('scan-status').textContent = 'Scanning and listening for device traffic… This may take up to a minute. You can keep using the display.';
       $('scan-results').replaceChildren();
       try {
         const ports = $('scan-ports').value.split(',').map(value => Number(value.trim()));
@@ -777,7 +777,7 @@
         $('scan-status').textContent = result.devices.length ? `${result.devices.length} reachable endpoint(s). Select the device for each role; nothing connects until you save.` : 'No devices found on these ports. Check the subnet and adapter ports. Busy adapters may not respond; you can still enter their IP manually.';
         for (const device of result.devices) {
           const row = document.createElement('div'); row.className = 'scan-result';
-          const label = document.createElement('div'); label.textContent = `${device.host}:${device.port}${device.connected ? ' — already connected' : ' — type unverified'}`;
+          const label = document.createElement('div'); label.textContent = `${device.host}:${device.port} — ${device.connected ? 'Already connected in this app' : device.identity || 'Unknown'}`;
           const actions = document.createElement('div'); actions.className = 'scan-actions';
           for (const [role, title] of [['limitimer','Limitimer'], ['perfectcue','PerfectCue']]) {
             const select = document.createElement('button'); select.type = 'button'; select.className = 'secondary'; select.textContent = `Use for ${title}`;
