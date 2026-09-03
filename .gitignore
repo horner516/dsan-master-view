@@ -1,0 +1,8 @@
+__pycache__/
+viewer-config.json
+viewer-config.json.tmp
+*.jsonl
+build/
+dist/
+*.pyc
+.DS_Store
