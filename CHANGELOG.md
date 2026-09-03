@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.4 — 2026-09-03
+
+- Made Network access a compact, full-width strip above the clock and cue panels, with links that wrap on smaller screens.
+- Includes the port-conflict launch fix from 0.2.3.
+
 ## 0.2.3 — 2026-09-03
 
 - Fixed a launch crash when another process already occupies the dashboard port.

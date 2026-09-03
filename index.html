@@ -81,6 +81,14 @@
     .network-links a { color: var(--cyan); text-decoration: none; font-size: .86rem; }
     .network-links a:hover { text-decoration: underline; }
     .network-metrics { grid-template-columns: 150px 1fr; }
+    .network-card { grid-column: 1 / -1; display: flex; align-items: center; }
+    .network-card .card-head { min-height: 0; padding: 12px 18px; border-bottom: 0; flex-shrink: 0; }
+    .network-card .network-metrics { flex: 1; min-width: 0; border-top: 0; border-left: 1px solid var(--line); }
+    .network-card .metric { min-width: 0; padding: 10px 16px; }
+    .network-card .metric-value { margin-top: 3px; }
+    .network-card .network-links { display: flex; flex-wrap: wrap; gap: 5px 18px; }
+    .network-card .network-links a { overflow-wrap: anywhere; }
+    .network-card .metric-copy { flex-shrink: 0; }
     .cue-body { min-height: 340px; display: grid; place-items: center; padding: 24px; position: relative; }
     .cue-display { width: min(100%, 360px); aspect-ratio: 1.12; border: 1px solid #334156; border-radius: 24px; background: linear-gradient(145deg, #192230, #0c1118); display: grid; place-items: center; text-align: center; position: relative; overflow: hidden; }
     .cue-display::before { content: ""; position: absolute; inset: 12px; border: 1px solid rgba(255,255,255,.045); border-radius: 16px; }
@@ -172,6 +180,11 @@
       .fullscreen-clock { font-size: min(27vw, 47vh); }
     }
     @media (max-width: 560px) {
+      .network-card { display: block; }
+      .network-card .card-head { padding: 10px 14px 4px; }
+      .network-card .network-metrics { grid-template-columns: 90px minmax(0, 1fr); border-left: 0; }
+      .network-card .metric { padding: 8px 12px; border-bottom: 0; }
+      .network-card .metric-row { flex-wrap: wrap; gap: 5px; }
       .shell { padding: 15px; }
       .subtitle { display: none; }
       .timer-stage { grid-template-columns: 55px 1fr; min-height: 280px; }
@@ -204,7 +217,7 @@
     </header>
 
       <section class="grid" aria-label="Live device status">
-      <article class="card">
+      <article class="card network-card">
         <div class="card-head"><div class="card-title">Network access</div></div>
         <div class="metrics network-metrics">
           <div class="metric">
