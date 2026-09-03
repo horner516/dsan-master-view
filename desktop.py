@@ -15,12 +15,11 @@ from pathlib import Path
 
 import webview
 
-from app import create_server
+from app import LOCAL_PORT, create_server
 
 
 APP_VERSION = "0.2.0"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
-DESKTOP_PORT = 5309
 
 
 def version_tuple(value: str) -> tuple[int, ...]:
@@ -96,12 +95,12 @@ class DesktopApi:
 
 
 def run_desktop(*, widget: bool) -> None:
-    server = create_server(DESKTOP_PORT)
+    server = create_server()
     threading.Thread(target=server.serve_forever, name="local-web-server", daemon=True).start()
     api = DesktopApi(is_widget=widget)
     api.window = webview.create_window(
         "D’San Master View",
-        f"http://127.0.0.1:{DESKTOP_PORT}",
+        f"http://127.0.0.1:{LOCAL_PORT}",
         js_api=api,
         width=1280,
         height=720,
