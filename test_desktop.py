@@ -9,6 +9,23 @@ from desktop import APP_VERSION, DesktopApi
 
 
 class DesktopTests(unittest.TestCase):
+    def test_tv_routes_serve_dashboard_and_require_auth(self):
+        for path in ['/full', '/full/', '/full?tv=1']:
+            with self.subTest(path=path):
+                handler = Handler.__new__(Handler)
+                handler.path = path
+                handler.authorized = Mock(return_value=True)
+                handler.send_bytes = Mock()
+                handler.request_authentication = Mock()
+                handler.do_GET()
+                handler.send_bytes.assert_called_once()
+                self.assertIn(b'const tvDisplay', handler.send_bytes.call_args.args[0])
+                handler.send_bytes.reset_mock()
+                handler.authorized.return_value = False
+                handler.do_GET()
+                handler.send_bytes.assert_not_called()
+                handler.request_authentication.assert_called_once()
+
     def test_bridge_policy_only_for_local_desktop_requests(self):
         for desktop, address, allowed in [(True, '127.0.0.1', True), (True, '10.21.1.20', False), (False, '127.0.0.1', False)]:
             with self.subTest(desktop=desktop, address=address):

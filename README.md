@@ -35,6 +35,12 @@ Authentication is off by default for trusted networks. To protect remote access,
 
 The first unsigned build may require Control-clicking the app and choosing **Open**. A future Apple Developer ID signature can remove this Gatekeeper warning.
 
+## TV display URL
+
+Open `http://HOST-COMPUTER-IP:PORT/full` in the TV's browser to show only the clock and cue arrows. For example: `http://10.21.0.1:57839/full`. Use the actual host address and port shown in Network access; keep the host app running.
+
+The display opens automatically and fills the browser page without an extra click. Browser toolbars are controlled by the TV browser, not this page. The normal setup page remains at `/`, and remote authentication still applies if enabled.
+
 ## Supported data
 
 - Limitimer: selected countdown, total, elapsed, remaining, sum-up threshold, run state, signal color, timer direction, and checksum validation.

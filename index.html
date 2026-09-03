@@ -105,6 +105,8 @@
     .fullscreen-view { position: fixed; inset: 0; z-index: 100; visibility: hidden; pointer-events: none; background: #000; display: grid; place-items: center; }
     .fullscreen-view:fullscreen { visibility: visible; pointer-events: auto; }
     body.browser-display .fullscreen-view { visibility: visible; pointer-events: auto; }
+    body.browser-display .shell { display: none; }
+    body.browser-display { overflow: hidden; background: #000; }
     .browser-fullscreen-button { position: absolute; top: 16px; right: 16px; z-index: 101; }
     .fullscreen-view:fullscreen .browser-fullscreen-button { display: none; }
     #update-dialog p { padding: 0 22px; max-width: 480px; }
@@ -613,11 +615,12 @@
       try { await $('fullscreen-view').requestFullscreen(); }
       catch (_) { showToast('Use your browser’s full-screen menu to expand this display.'); }
     });
-    if (new URLSearchParams(location.search).get('display') === 'fullscreen') {
+    const tvDisplay = /^\/full\/?$/.test(location.pathname);
+    if (tvDisplay || new URLSearchParams(location.search).get('display') === 'fullscreen') {
       document.body.classList.add('browser-display');
-      $('browser-enter-fullscreen').hidden = false;
+      $('browser-enter-fullscreen').hidden = tvDisplay;
       // Browsers may require a fresh user gesture in the newly opened window.
-      $('fullscreen-view').requestFullscreen?.().catch(() => {});
+      if (!tvDisplay) $('fullscreen-view').requestFullscreen?.().catch(() => {});
     }
     $('open-mobile').addEventListener('click', () => {
       document.body.classList.add('mobile-open');

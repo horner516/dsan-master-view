@@ -15,6 +15,7 @@ import sys
 import threading
 import time
 import webbrowser
+from urllib.parse import urlsplit
 from copy import deepcopy
 from datetime import datetime, timezone
 from http import HTTPStatus
@@ -462,7 +463,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             self.request_authentication()
             return
-        if self.path in ("/", "/index.html"):
+        if urlsplit(self.path).path in ("/", "/index.html", "/full", "/full/"):
             self.send_bytes(INDEX_PATH.read_bytes(), "text/html; charset=utf-8")
         elif self.path == "/api/state":
             self.send_json(SHARED.snapshot())

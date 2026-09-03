@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.9 — 2026-09-03
+
+- Added `/full` and `/full/` URLs for TV browsers to load directly into the clock-and-arrow display with no setup controls or fullscreen prompt.
+- The display fills the browser viewport without requiring the browser Fullscreen API. Remote authentication still applies when enabled.
+
 ## 0.2.8 — 2026-09-03
 
 - Bundled trusted certificates for HTTPS update checks and installer downloads, instead of relying on certificate files on the build machine.
