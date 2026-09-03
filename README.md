@@ -20,6 +20,8 @@ To publish an update, change `APP_VERSION` in `desktop.py` and `MyAppVersion` in
 
 Download the macOS `.dmg`, drag **D’San Master View** into Applications, and launch it like a normal Mac app. It uses a standard resizable application window and keeps the D’S logo visible in the Dock. The same right-click menu can check for updates or optionally keep the viewer above other windows.
 
+Both installed desktop applications run their private local viewer on `127.0.0.1:5309`. Device TCP ports remain independently configurable under **Settings**.
+
 The first unsigned build may require Control-clicking the app and choosing **Open**. A future Apple Developer ID signature can remove this Gatekeeper warning.
 
 ## Supported data
