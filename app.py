@@ -383,10 +383,10 @@ class Handler(BaseHTTPRequestHandler):
             super().log_message(fmt, *args)
 
 
-def create_server() -> ThreadingHTTPServer:
+def create_server(port: int = 8765) -> ThreadingHTTPServer:
     LimitimerWorker(SHARED).start()
     PerfectCueWorker(SHARED).start()
-    return ThreadingHTTPServer(("127.0.0.1", 8765), Handler)
+    return ThreadingHTTPServer(("127.0.0.1", port), Handler)
 
 
 def main() -> None:
