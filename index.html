@@ -104,6 +104,11 @@
     .cue-meta { display: flex; justify-content: space-between; padding: 15px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
     .fullscreen-view { position: fixed; inset: 0; z-index: 100; visibility: hidden; pointer-events: none; background: #000; display: grid; place-items: center; }
     .fullscreen-view:fullscreen { visibility: visible; pointer-events: auto; }
+    body.browser-display .fullscreen-view { visibility: visible; pointer-events: auto; }
+    .browser-fullscreen-button { position: absolute; top: 16px; right: 16px; z-index: 101; }
+    .fullscreen-view:fullscreen .browser-fullscreen-button { display: none; }
+    #update-dialog p { padding: 0 22px; max-width: 480px; }
+    #update-dialog .dialog-actions { padding: 16px 22px; }
     .fullscreen-stage { width: min(100vw, calc(100vh * 16 / 9)); aspect-ratio: 16 / 9; display: grid; grid-template-rows: minmax(0, 1fr) 28%; place-items: center; padding: 3vh 3vw 4vh; background: radial-gradient(circle at 50% 44%, #111a24 0, #05080c 42%, #000 74%); overflow: hidden; }
     .fullscreen-clock { align-self: end; max-width: 100%; font-family: var(--clock-font); font-size: min(28vw, 49vh); font-weight: 760; line-height: .86; letter-spacing: -.085em; font-variant-numeric: tabular-nums; white-space: nowrap; text-align: center; }
     .fullscreen-directions { align-self: start; width: min(68vw, 1250px); display: grid; grid-template-columns: 1fr 1fr; gap: min(13vw, 240px); place-items: center; }
@@ -323,6 +328,7 @@
   </section>
 
   <section class="fullscreen-view" id="fullscreen-view" aria-label="Full-screen timer and cue">
+    <button class="secondary browser-fullscreen-button" id="browser-enter-fullscreen" type="button" hidden>Enter full screen</button>
     <div class="fullscreen-stage">
       <div class="fullscreen-clock" id="fullscreen-clock">--:--</div>
       <div class="fullscreen-directions" aria-live="assertive">
@@ -391,6 +397,14 @@
     <button id="close-widget" type="button" role="menuitem">Close widget</button>
   </div>
   <div class="toast" id="toast" role="status"></div>
+  <dialog id="update-dialog" aria-labelledby="update-title">
+    <div class="dialog-head"><h2 id="update-title">Check for updates</h2></div>
+    <p id="update-message" role="status"></p>
+    <div class="dialog-actions">
+      <button class="secondary" id="update-close" type="button">Close</button>
+      <button class="primary" id="update-install" type="button" hidden>Install update</button>
+    </div>
+  </dialog>
 
   <script>
     const $ = (id) => document.getElementById(id);
@@ -587,8 +601,24 @@
 
     $('open-settings').addEventListener('click', () => { if (latestState) fillSettings(latestState.config); $('form-error').textContent = ''; $('settings-dialog').showModal(); });
     $('open-fullscreen').addEventListener('click', async () => {
-      try { await $('fullscreen-view').requestFullscreen(); } catch (_) {}
+      if (window.pywebview?.api) {
+        try { showToast((await window.pywebview.api.open_browser_fullscreen()).message); }
+        catch (_) { showToast('Could not open your browser. Please try again.'); }
+        return;
+      }
+      try { await $('fullscreen-view').requestFullscreen(); }
+      catch (_) { showToast('Full screen is unavailable in this browser.'); }
     });
+    $('browser-enter-fullscreen').addEventListener('click', async () => {
+      try { await $('fullscreen-view').requestFullscreen(); }
+      catch (_) { showToast('Use your browser’s full-screen menu to expand this display.'); }
+    });
+    if (new URLSearchParams(location.search).get('display') === 'fullscreen') {
+      document.body.classList.add('browser-display');
+      $('browser-enter-fullscreen').hidden = false;
+      // Browsers may require a fresh user gesture in the newly opened window.
+      $('fullscreen-view').requestFullscreen?.().catch(() => {});
+    }
     $('open-mobile').addEventListener('click', () => {
       document.body.classList.add('mobile-open');
       $('mobile-view').setAttribute('aria-hidden', 'false');
@@ -649,26 +679,40 @@
     async function checkForUpdates(event) {
       event.stopPropagation();
       $('widget-menu').classList.remove('open');
-      if (!desktopMode) {
-        window.open('https://github.com/horner516/dsan-master-view/releases/latest', '_blank', 'noopener,noreferrer');
+      $('update-message').textContent = 'Checking for updates…';
+      $('update-install').hidden = true;
+      if (!$('update-dialog').open) $('update-dialog').showModal();
+      if (!window.pywebview?.api) {
+        $('update-message').textContent = 'You are using the browser viewer. Check for updates inside the desktop application, or visit the GitHub releases page.';
         return;
       }
       $('update-button').disabled = true;
       $('check-updates').disabled = true;
-      showToast('Checking for updates…');
       try {
         const result = await window.pywebview.api.check_for_updates();
-        if (result.update_available && window.confirm(result.message)) {
-          showToast('Downloading update…');
-          const installed = await window.pywebview.api.install_update();
-          showToast(installed.message);
-        } else if (!result.update_available) showToast(result.message);
-      } catch (_) { showToast('Could not check for updates.'); }
+        $('update-message').textContent = result.message;
+        $('update-install').hidden = !result.update_available;
+      } catch (_) { $('update-message').textContent = 'Could not check for updates. Please try again.'; }
       finally {
         $('update-button').disabled = false;
         $('check-updates').disabled = false;
       }
     }
+    $('update-close').addEventListener('click', () => $('update-dialog').close());
+    $('update-install').addEventListener('click', async () => {
+      $('update-install').disabled = true;
+      $('update-button').disabled = true;
+      $('check-updates').disabled = true;
+      $('update-message').textContent = 'Downloading update…';
+      try { $('update-message').textContent = (await window.pywebview.api.install_update()).message; }
+      catch (_) { $('update-message').textContent = 'Could not download the update. Please try again.'; }
+      finally {
+        $('update-install').disabled = false;
+        $('update-install').hidden = true;
+        $('update-button').disabled = false;
+        $('check-updates').disabled = false;
+      }
+    });
     $('check-updates').addEventListener('click', checkForUpdates);
     $('update-button').addEventListener('click', checkForUpdates);
     $('toggle-on-top').addEventListener('click', async event => {

@@ -11,6 +11,7 @@ import tempfile
 import threading
 import urllib.error
 import urllib.request
+import webbrowser
 from pathlib import Path
 
 import webview
@@ -18,7 +19,7 @@ import webview
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.5"
+APP_VERSION = "0.2.6"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 
@@ -36,6 +37,13 @@ class DesktopApi:
         self.is_widget = is_widget
         self.on_top = is_widget
         self.pending_asset: str | None = None
+        self.server_port = LOCAL_PORT
+
+    def open_browser_fullscreen(self) -> dict[str, str]:
+        url = f"http://127.0.0.1:{self.server_port}/?display=fullscreen"
+        if not webbrowser.open(url, new=1):
+            raise RuntimeError("Could not open your browser.")
+        return {"message": "Display opened in your browser. Click Enter full screen there if prompted."}
 
     def app_state(self) -> dict[str, bool]:
         return {"is_widget": self.is_widget, "on_top": self.on_top}
@@ -56,8 +64,10 @@ class DesktopApi:
         assets = release.get("assets", [])
         suffix = "-setup.exe" if sys.platform == "win32" else "-macos.dmg"
         installer = next((asset for asset in assets if str(asset.get("name", "")).lower().endswith(suffix)), None)
-        if not version or version_tuple(version) <= version_tuple(APP_VERSION):
-            return {"update_available": False, "message": f"D’San Master View {APP_VERSION} is up to date."}
+        if not version or version_tuple(version) == (0,):
+            return {"update_available": False, "message": "Could not read the latest release version. Please try again."}
+        if version_tuple(version) <= version_tuple(APP_VERSION):
+            return {"update_available": False, "message": "you are running the latest version you filthy animal"}
         if not installer:
             return {"update_available": False, "message": f"Version {version} is available, but has no installer."}
         self.pending_asset = str(installer["browser_download_url"])
@@ -99,6 +109,7 @@ def run_desktop(*, widget: bool) -> None:
     server = create_server()
     threading.Thread(target=server.serve_forever, name="local-web-server", daemon=True).start()
     api = DesktopApi(is_widget=widget)
+    api.server_port = server.server_port
     api.window = webview.create_window(
         "D’San Master View",
         f"http://127.0.0.1:{server.server_port}",

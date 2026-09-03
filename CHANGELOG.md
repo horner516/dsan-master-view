@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.6 — 2026-09-03
+
+- Update checks now open a persistent pop-up with progress, results, errors, and an Install update button.
+- When current, the app says: "you are running the latest version you filthy animal".
+- Desktop Full screen opens the clock and cue display in the default browser using the selected server port. If the browser blocks automatic fullscreen, click Enter full screen once.
+
 ## 0.2.5 — 2026-09-03
 
 - Confirmed automatic startup port selection for both Windows and Mac, with explicit handling of Windows socket error 10048 (port already in use).
