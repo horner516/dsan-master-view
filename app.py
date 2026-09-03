@@ -9,6 +9,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import secrets
 import socket
 import sys
@@ -37,7 +38,7 @@ CONFIG_PATH = DATA_DIR / "viewer-config.json"
 DEFAULT_CONFIG = {
     "limitimer": {"host": "10.21.0.119", "port": 6120, "enabled": True},
     "perfectcue": {"host": "", "port": 6120, "enabled": False},
-    "display": {"overtime": "continue", "font": "mono", "show_lights": True},
+    "display": {"overtime": "continue", "font": "mono", "show_lights": True, "clock_color": "#f5f8fb", "green_color": "#35d07f", "yellow_color": "#ffd166", "red_color": "#ff5263", "fixed_color": True},
     "access": {
         "require_auth": False,
         "username": "admin",
@@ -173,6 +174,7 @@ class SharedState:
             }
         }
         self.data: dict[str, Any] = {
+            "message": {"text": "", "color": "#ffffff", "flash": False},
             "limitimer": {
                 "status": "waiting",
                 "error": None,
@@ -327,10 +329,17 @@ def validate_config(config: dict[str, Any], existing: dict[str, Any] | None = No
     if overtime not in ("continue", "stop"):
         raise ValueError("overtime display must continue or stop at zero")
     font = str(display.get("font", "mono")) if isinstance(display, dict) else "mono"
-    if font not in ("mono", "sans", "condensed", "serif"):
+    if font not in ("mono", "sans", "condensed", "serif", "helvetica", "verdana", "georgia", "comic_sans", "trebuchet", "arial_black", "impact"):
         raise ValueError("clock font is not supported")
     show_lights = bool(display.get("show_lights", True)) if isinstance(display, dict) else True
     clean["display"] = {"overtime": overtime, "font": font, "show_lights": show_lights}
+    for key in ("clock_color", "green_color", "yellow_color", "red_color"):
+        value = display.get(key, DEFAULT_CONFIG["display"][key]) if isinstance(display, dict) else DEFAULT_CONFIG["display"][key]
+        if not isinstance(value, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", value):
+            raise ValueError("display colors must be six-digit hex colors")
+        clean["display"][key] = value
+    for key, default in (("fixed_color", True),):
+        clean["display"][key] = bool(display.get(key, default)) if isinstance(display, dict) else default
 
     access = config.get("access", {})
     if not isinstance(access, dict):
@@ -474,7 +483,7 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized():
             self.request_authentication()
             return
-        if self.path != "/api/config":
+        if self.path not in ("/api/config", "/api/message"):
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         try:
@@ -482,6 +491,12 @@ class Handler(BaseHTTPRequestHandler):
             if size > 16_384:
                 raise ValueError("settings payload is too large")
             payload = json.loads(self.rfile.read(size))
+            if self.path == "/api/message":
+                message = validate_message(payload)
+                with SHARED.lock:
+                    SHARED.data["message"] = message
+                self.send_json({"ok": True, "message": message})
+                return
             config = SHARED.set_config(payload)
             self.send_json({"ok": True, "config": config})
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
@@ -534,6 +549,17 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt: str, *args: Any) -> None:
         if self.path != "/api/state":
             super().log_message(fmt, *args)
+
+
+def validate_message(payload: Any) -> dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(payload.get("text"), str):
+        raise ValueError("message text is required")
+    if len(payload["text"]) > 160:
+        raise ValueError("message must be 160 characters or fewer")
+    color = payload.get("color", "#ffffff")
+    if not isinstance(color, str) or not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+        raise ValueError("message color must be a six-digit hex color")
+    return {"text": payload["text"].strip(), "color": color, "flash": bool(payload.get("flash", False))}
 
 
 def create_server(port: int = LOCAL_PORT) -> ThreadingHTTPServer:

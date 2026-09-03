@@ -14,6 +14,7 @@ from app import (
     parse_limitimer_frame,
     public_config,
     validate_config,
+    validate_message,
     verify_password,
     create_server,
 )
@@ -25,6 +26,14 @@ CAPTURED_FRAME = bytes.fromhex(
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_presenter_message_validation_and_blank_start(self):
+        self.assertEqual(SharedState().data['message']['text'], '')
+        message = validate_message({'text': ' Wrap up ', 'color': '#ffcc00', 'flash': True})
+        self.assertEqual(message, {'text': 'Wrap up', 'color': '#ffcc00', 'flash': True})
+        for payload in [{'text': 'x' * 161}, {'text': 'Hi', 'color': 'invalid'}, {'text': 123}]:
+            with self.assertRaises(ValueError):
+                validate_message(payload)
+
     def test_busy_port_falls_back_and_reports_actual_port(self):
         server = Mock(server_port=55001)
         with patch('app.ThreadingHTTPServer', side_effect=[OSError(errno.EADDRINUSE, 'busy'), server]) as factory, patch('app.LimitimerWorker') as timer, patch('app.PerfectCueWorker') as cue:

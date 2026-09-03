@@ -40,7 +40,7 @@
     .mark { width: 42px; height: 42px; border: 1px solid #365267; border-radius: 12px; display: grid; place-items: center; background: #111d27; color: var(--cyan); font-weight: 800; letter-spacing: -.08em; }
     h1 { margin: 0; font-size: 1.12rem; letter-spacing: .01em; }
     .subtitle { color: var(--muted); font-size: .86rem; margin-top: 3px; }
-    .header-actions { display: flex; align-items: center; gap: 9px; }
+    .header-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 9px; }
     .settings-button, .primary, .secondary {
       border: 1px solid var(--line); border-radius: 10px; padding: 10px 15px; color: var(--text); background: var(--panel-2);
     }
@@ -104,6 +104,15 @@
     .cue-meta { display: flex; justify-content: space-between; padding: 15px 18px; border-top: 1px solid var(--line); color: var(--muted); font-size: .8rem; }
     .fullscreen-view { position: fixed; inset: 0; z-index: 100; visibility: hidden; pointer-events: none; background: #000; display: grid; place-items: center; }
     .fullscreen-view:fullscreen { visibility: visible; pointer-events: auto; }
+    .clock, .fullscreen-clock, .mobile-clock { color: var(--timer-color, #f5f8fb); }
+    .presenter-message { display: none; width: 100%; text-align: center; font-weight: 750; font-size: clamp(18px, 4vw, 72px); line-height: 1.1; overflow-wrap: anywhere; white-space: pre-wrap; }
+    body.has-message .presenter-message { display: block; }
+    body.has-message .fullscreen-stage { grid-template-rows: minmax(0, 1fr) 22% 24%; }
+    .presenter-message.flashing { animation: message-flash 1.5s ease-in-out infinite; }
+    @keyframes message-flash { 50% { opacity: .2; } }
+    #message-dialog form { display: grid; gap: 14px; }
+    #message-text { width: 100%; background: #0c1118; color: var(--text); border: 1px solid var(--line); border-radius: 9px; padding: 12px; font: inherit; }
+    input[type="color"] { width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 8px; background: transparent; }
     body.browser-display .fullscreen-view { visibility: visible; pointer-events: auto; }
     body.browser-display .shell { display: none; }
     body.browser-display { overflow: hidden; background: #000; }
@@ -219,6 +228,7 @@
         <button class="settings-button" id="open-fullscreen" type="button">Full screen</button>
         <button class="settings-button" id="open-mobile" type="button">Mobile view</button>
         <button class="settings-button" id="open-settings" type="button">Settings</button>
+        <button class="settings-button" id="open-message" type="button">Presenter message</button>
         <button class="settings-button" id="update-button" type="button">Check for updates</button>
       </div>
     </header>
@@ -337,8 +347,21 @@
         <div class="fullscreen-direction previous" id="fullscreen-previous" aria-label="Previous"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M29 8H14V2L3 12l11 10v-6h15z"/></svg></div>
         <div class="fullscreen-direction next" id="fullscreen-next" aria-label="Next"><svg viewBox="0 0 32 24" aria-hidden="true"><path d="M3 8h15V2l11 10-11 10v-6H3z"/></svg></div>
       </div>
+      <div class="presenter-message" id="presenter-message" role="status" aria-live="polite"></div>
     </div>
   </section>
+
+  <dialog id="message-dialog" aria-labelledby="message-title">
+    <div class="dialog-head"><h2 id="message-title">Presenter message</h2><button class="close" id="close-message" type="button" aria-label="Close">×</button></div>
+    <form id="message-form">
+      <label><span>Message (up to 160 characters)</span><textarea id="message-text" rows="3" maxlength="160" placeholder="Please wrap up"></textarea></label>
+      <label><span>Message color</span><input id="message-color" type="color" value="#ffffff"></label>
+      <label><input id="message-flash" type="checkbox"> Flash message for attention</label>
+      <p>Shown on all full-screen and /full displays until cleared. Messages clear when the host app restarts.</p>
+      <div id="message-feedback" role="status"></div>
+      <div class="dialog-actions"><button class="secondary" id="clear-message" type="button">Clear message</button><button class="primary" type="submit">Show message</button></div>
+    </form>
+  </dialog>
 
   <dialog id="settings-dialog">
     <div class="dialog-head"><h2>Settings</h2><button class="close" id="close-settings" type="button" aria-label="Close">×</button></div>
@@ -374,9 +397,21 @@
               <option value="sans">Clean sans</option>
               <option value="condensed">Condensed</option>
               <option value="serif">Classic serif</option>
+              <option value="helvetica">Helvetica</option>
+              <option value="verdana">Verdana</option>
+              <option value="georgia">Georgia</option>
+              <option value="comic_sans">Comic Sans MS</option>
+              <option value="trebuchet">Trebuchet MS</option>
+              <option value="arial_black">Arial Black</option>
+              <option value="impact">Impact</option>
             </select>
           </label>
           <label class="toggle-row"><input type="checkbox" id="show-lights"> Show Limitimer indicator lights</label>
+          <label><span>Overall clock color</span><input id="clock-color" type="color" value="#f5f8fb"></label>
+          <label class="toggle-row"><input type="checkbox" id="fixed-color" checked> Always use overall color (override status colors)</label>
+          <label><span>Green / normal status</span><input id="green-color" type="color" value="#35d07f"></label>
+          <label><span>Yellow / warning status</span><input id="yellow-color" type="color" value="#ffd166"></label>
+          <label><span>Red / stop status</span><input id="red-color" type="color" value="#ff5263"></label>
         </div>
       </fieldset>
       <fieldset>
@@ -425,7 +460,14 @@
       mono: 'Consolas, "SFMono-Regular", Menlo, monospace',
       sans: 'Arial, "Segoe UI", sans-serif',
       condensed: '"Arial Narrow", "Roboto Condensed", "Segoe UI", sans-serif',
-      serif: 'Georgia, "Times New Roman", serif'
+      serif: 'Georgia, "Times New Roman", serif',
+      helvetica: 'Helvetica, "Helvetica Neue", Arial, sans-serif',
+      verdana: 'Verdana, Geneva, sans-serif',
+      georgia: 'Georgia, "Times New Roman", serif',
+      comic_sans: '"Comic Sans MS", "Comic Sans", cursive',
+      trebuchet: '"Trebuchet MS", Arial, sans-serif',
+      arial_black: '"Arial Black", Arial, sans-serif',
+      impact: 'Impact, Haettenschweiler, "Arial Narrow", sans-serif'
     };
 
     function setStatus(id, value, error) {
@@ -454,6 +496,41 @@
       const display = config?.display || {};
       document.documentElement.style.setProperty('--clock-font', fontStacks[display.font] || fontStacks.mono);
       document.body.classList.toggle('hide-lights', display.show_lights === false);
+      const signal = latestState?.limitimer?.data?.active?.signal;
+      const color = display.fixed_color === false && ['green', 'yellow', 'red'].includes(signal) ? display[`${signal}_color`] : display.clock_color;
+      document.documentElement.style.setProperty('--timer-color', color || '#f5f8fb');
+      ['green', 'yellow', 'red'].forEach(name => {
+        const value = display[`${name}_color`] || {green:'#35d07f',yellow:'#ffd166',red:'#ff5263'}[name];
+        for (const prefix of ['lamp-', 'mobile-lamp-']) {
+          const lamp = $(prefix + name);
+          lamp.style.background = signal === name ? value : '';
+          lamp.style.boxShadow = signal === name ? `0 0 24px ${value}aa` : '';
+        }
+      });
+    }
+
+    function fitPresenterDisplay() {
+      const stage = document.querySelector('.fullscreen-stage');
+      const clock = $('fullscreen-clock');
+      clock.style.fontSize = '';
+      const rows = getComputedStyle(stage).gridTemplateRows.split(' ').map(parseFloat);
+      const width = stage.clientWidth - parseFloat(getComputedStyle(stage).paddingLeft) - parseFloat(getComputedStyle(stage).paddingRight);
+      if (clock.scrollWidth > width && width > 0) clock.style.fontSize = `${parseFloat(getComputedStyle(clock).fontSize) * width / clock.scrollWidth * .98}px`;
+      const message = $('presenter-message');
+      message.style.fontSize = '';
+      if (rows[2] > 0 && message.scrollHeight > rows[2]) message.style.fontSize = `${parseFloat(getComputedStyle(message).fontSize) * rows[2] / message.scrollHeight * .95}px`;
+    }
+    window.addEventListener('resize', fitPresenterDisplay);
+    document.addEventListener('fullscreenchange', fitPresenterDisplay);
+    document.fonts?.ready.then(fitPresenterDisplay);
+
+    function renderMessage(message = {}) {
+      const target = $('presenter-message');
+      if (target.textContent !== (message.text || '')) target.textContent = message.text || '';
+      target.style.color = message.color || '#ffffff';
+      target.classList.toggle('flashing', !!message.flash);
+      document.body.classList.toggle('has-message', !!message.text);
+      fitPresenterDisplay();
     }
 
     function renderLimitimer(device) {
@@ -562,6 +639,8 @@
       $('overtime-mode').value = config.display?.overtime || 'continue';
       $('clock-font').value = config.display?.font || 'mono';
       $('show-lights').checked = config.display?.show_lights !== false;
+      $('fixed-color').checked = config.display?.fixed_color !== false;
+      for (const [name, fallback] of Object.entries({clock:'#f5f8fb',green:'#35d07f',yellow:'#ffd166',red:'#ff5263'})) $(`${name}-color`).value = config.display?.[`${name}_color`] || fallback;
       const access = config.access || {};
       $('require-auth').checked = access.require_auth === true;
       $('auth-username').value = access.username || 'admin';
@@ -586,6 +665,7 @@
         renderNetworkInfo(latestState.network);
         renderLimitimer(latestState.limitimer);
         renderCue(latestState.perfectcue);
+        renderMessage(latestState.message);
       } catch (_) {
         setStatus('limitimer-status', 'disconnected', 'Local monitor is unavailable');
         setStatus('perfectcue-status', 'disconnected', 'Local monitor is unavailable');
@@ -602,6 +682,28 @@
     }
 
     $('open-settings').addEventListener('click', () => { if (latestState) fillSettings(latestState.config); $('form-error').textContent = ''; $('settings-dialog').showModal(); });
+    $('open-message').addEventListener('click', () => {
+      const message = latestState?.message || {};
+      $('message-text').value = message.text || '';
+      $('message-color').value = message.color || '#ffffff';
+      $('message-flash').checked = !!message.flash;
+      $('message-feedback').textContent = '';
+      $('message-dialog').showModal();
+    });
+    $('close-message').addEventListener('click', () => $('message-dialog').close());
+    async function sendPresenterMessage(clear = false) {
+      const payload = {text: clear ? '' : $('message-text').value, color: $('message-color').value, flash: !clear && $('message-flash').checked};
+      try {
+        const response = await fetch('/api/message', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'Could not send message');
+        $('message-feedback').textContent = clear ? 'Message cleared from all displays.' : 'Message is live on all full-screen displays.';
+        if (clear) $('message-text').value = '';
+        await poll();
+      } catch (error) { $('message-feedback').textContent = error.message; }
+    }
+    $('message-form').addEventListener('submit', event => { event.preventDefault(); sendPresenterMessage(); });
+    $('clear-message').addEventListener('click', () => sendPresenterMessage(true));
     $('open-fullscreen').addEventListener('click', async () => {
       if (window.pywebview?.api) {
         try { showToast((await window.pywebview.api.open_browser_fullscreen()).message); }
@@ -645,6 +747,8 @@
       const payload = {};
       for (const name of ['limitimer', 'perfectcue']) payload[name] = {host: $(`${name}-host`).value.trim(), port: Number($(`${name}-port`).value), enabled: $(`${name}-enabled`).checked};
       payload.display = {overtime: $('overtime-mode').value, font: $('clock-font').value, show_lights: $('show-lights').checked};
+      payload.display.fixed_color = $('fixed-color').checked;
+      for (const name of ['clock', 'green', 'yellow', 'red']) payload.display[`${name}_color`] = $(`${name}-color`).value;
       payload.access = {require_auth: $('require-auth').checked, username: $('auth-username').value.trim(), password: $('auth-password').value};
       try {
         const response = await fetch('/api/config', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)});

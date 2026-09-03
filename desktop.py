@@ -21,7 +21,7 @@ import certifi
 from app import LOCAL_PORT, create_server
 
 
-APP_VERSION = "0.2.9"
+APP_VERSION = "0.3.0"
 UPDATE_REPOSITORY = os.environ.get("DSAN_UPDATE_REPO", "horner516/dsan-master-view")
 
 

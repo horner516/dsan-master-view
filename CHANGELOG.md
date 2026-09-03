@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 — 2026-09-03
+
+- Added presenter messages for all full-screen and `/full` displays, with text color, gentle flashing, and Show/Clear controls.
+- Presenter messages start blank on host startup and are not saved between sessions.
+- Added overall clock color and configurable green, yellow, and red status colors, with an override to keep the clock one color.
+- Added Helvetica, Verdana, Georgia, Comic Sans MS, Trebuchet MS, Arial Black, and Impact font choices with local fallbacks.
+- Retained the original full-screen clock sizing; removed the preview's maximum-size option.
+
 ## 0.2.9 — 2026-09-03
 
 - Added `/full` and `/full/` URLs for TV browsers to load directly into the clock-and-arrow display with no setup controls or fullscreen prompt.
